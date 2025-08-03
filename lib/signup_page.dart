@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'signup_page.dart';
+import 'login_page.dart';
+import 'otp_page.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _SignUpPageState extends State<SignUpPage> {
   final FocusNode _mobileFocusNode = FocusNode();
   final TextEditingController _mobileController = TextEditingController();
   bool _isMobileFocused = false;
@@ -56,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
               child: _buildTopSection(),
             ),
 
-            // Bottom Section - Login Form (60% of screen)
+            // Bottom Section - Sign Up Form (60% of screen)
             Expanded(
               flex: 6,
               child: _buildBottomSection(),
@@ -95,6 +96,73 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Widget _buildPersonIllustration(String emoji, {bool isOnATM = false, bool isOnGround = false, bool isOnMoneyStack = false}) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        emoji,
+        style: const TextStyle(fontSize: 24),
+      ),
+    );
+  }
+
+  Widget _buildATMIllustration() {
+    return Container(
+      width: 60,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade300, width: 2),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 40,
+            height: 20,
+            decoration: BoxDecoration(
+              color: Colors.blue.shade100,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Center(
+              child: Text(
+                '\$',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingDollarSign() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Text(
+        '\$',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
   Widget _buildBottomSection() {
     return Container(
       margin: const EdgeInsets.only(top: 20),
@@ -114,20 +182,21 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          _buildHeaderSection(),
-          const SizedBox(height: 40),
-          _buildMobileInputField(),
-          const SizedBox(height: 50),
-          _buildContinueButton(),
-          const Spacer(),
-          _buildSignUpLink(),
-          const SizedBox(height: 20),
-        ],
-      ),
+             child: Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           const SizedBox(height: 20),
+           _buildHeaderSection(),
+           const SizedBox(height: 40),
+           _buildMobileInputField(),
+           const SizedBox(height: 50),
+           _buildContinueButton(),
+           const SizedBox(height: 20),
+           _buildLoginLink(),
+           const Spacer(),
+           _buildTermsAndConditions(),
+         ],
+       ),
     );
   }
 
@@ -136,7 +205,7 @@ class _LoginPageState extends State<LoginPage> {
       children: [
         const Center(
           child: Text(
-            'Login to Split',
+            'SignUp to Split',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -147,8 +216,9 @@ class _LoginPageState extends State<LoginPage> {
         const SizedBox(height: 8),
         const Center(
           child: Text(
-            'Welcome back, Please login to continue',
+            'Welcome to split app, Sign up with your mobile number',
             style: TextStyle(fontSize: 16, color: Colors.black54),
+            textAlign: TextAlign.center,
           ),
         ),
       ],
@@ -157,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildMobileInputField() {
     return Container(
-      height: 100,
+      height: 70,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -170,7 +240,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildInputFieldContainer() {
     return Positioned(
-      top: 40,
+      top: 20,
       left: 0,
       right: 0,
       child: Container(
@@ -216,7 +286,6 @@ class _LoginPageState extends State<LoginPage> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(width: 2),
         ],
       ),
     );
@@ -272,7 +341,7 @@ class _LoginPageState extends State<LoginPage> {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
-      top: 30,
+      top: 10,
       left: 12,
       child: Material(
         borderRadius: BorderRadius.circular(4),
@@ -300,7 +369,7 @@ class _LoginPageState extends State<LoginPage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () => _handleContinueButton(),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2196F3),
           foregroundColor: Colors.white,
@@ -320,16 +389,59 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildSignUpLink() {
+  void _handleContinueButton() {
+    if (_mobileController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your mobile number'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (_mobileController.text.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid 10-digit mobile number'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Navigate to OTP page with the mobile number
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => OtpPage(
+          mobileNumber: _mobileController.text,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  Widget _buildLoginLink() {
     return Center(
       child: GestureDetector(
         onTap: () {
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const SignUpPage(),
+              pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(1.0, 0.0);
+                const begin = Offset(-1.0, 0.0);
                 const end = Offset.zero;
                 const curve = Curves.easeInOut;
                 var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
@@ -345,11 +457,11 @@ class _LoginPageState extends State<LoginPage> {
             style: TextStyle(fontSize: 16),
             children: [
               TextSpan(
-                text: "Don't have an account? ",
+                text: "Already have an account? ",
                 style: TextStyle(color: Colors.black54),
               ),
               TextSpan(
-                text: 'Sign up',
+                text: 'Login',
                 style: TextStyle(
                   color: Color(0xFF2196F3),
                   fontWeight: FontWeight.w600,
@@ -361,4 +473,57 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
+  Widget _buildTermsAndConditions() {
+    return Center(
+      child: RichText(
+        textAlign: TextAlign.center,
+        text: const TextSpan(
+          style: TextStyle(fontSize: 12, color: Colors.black54),
+          children: [
+            TextSpan(text: "By continuing, you agree to our "),
+            TextSpan(
+              text: "Terms and Conditions",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            TextSpan(text: " and "),
+            TextSpan(
+              text: "Privacy policy.",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class BackgroundPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+
+    const squareSize = 20.0;
+    const spacing = 30.0;
+
+    for (double y = 0; y < size.height; y += spacing) {
+      for (double x = 0; x < size.width; x += spacing) {
+        canvas.drawRect(
+          Rect.fromLTWH(x, y, squareSize, squareSize),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 } 
