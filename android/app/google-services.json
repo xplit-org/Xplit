@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "454038925269",
+    "project_id": "expenser-b3d6c",
+    "storage_bucket": "expenser-b3d6c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:454038925269:android:67d120c29ea9e00e44575c",
+        "android_client_info": {
+          "package_name": "com.example.expenser"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCthV2bWdfMpfIXjzcuOVvOgrMRCHVRsQE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
