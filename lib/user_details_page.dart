@@ -50,7 +50,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+            colors: [Color(0xDF0439A4), Color(0xDF0439A4)],
           ),
         ),
         child: Column(
@@ -67,28 +67,23 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
   }
 
   Widget _buildTopSection() {
-    return Center(
-      child: Container(
-        width: 200,
-        height: 200,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Image.asset(
-            'assets/image 4.png',
-            fit: BoxFit.cover,
-            width: 200,
-            height: 200,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
+        ],
+      ),
+      child: ClipRRect(
+        child: Image.asset(
+          'assets/image 4.png',
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
         ),
       ),
     );
@@ -96,7 +91,6 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
 
   Widget _buildBottomSection() {
     return Container(
-      margin: const EdgeInsets.only(top: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.only(
@@ -113,19 +107,23 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
         ],
       ),
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          _buildHeaderSection(),
-          const SizedBox(height: 30),
-          _buildProfilePictureSection(),
-          const SizedBox(height: 30),
-          _buildFormFields(),
-          const SizedBox(height: 40),
-          _buildSubmitButton(),
-          const SizedBox(height: 20),
-        ],
+      child: Scrollbar(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              _buildHeaderSection(),
+              const SizedBox(height: 20),
+              _buildProfilePictureSection(),
+              const SizedBox(height: 20),
+              _buildFormFields(),
+              const SizedBox(height: 40),
+              _buildSubmitButton(),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
       ),
     );
   }

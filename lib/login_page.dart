@@ -52,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             // Top Section - Illustration (40% of screen)
             Expanded(
-              flex: 4,
+              flex: 3,
               child: _buildTopSection(),
             ),
 
@@ -115,9 +115,8 @@ class _LoginPageState extends State<LoginPage> {
         children: [
           const SizedBox(height: 20),
           _buildHeaderSection(),
-          const SizedBox(height: 40),
           _buildMobileInputField(),
-          const SizedBox(height: 50),
+          const SizedBox(height: 30),
           _buildContinueButton(),
           const Spacer(),
           _buildSignUpLink(),
