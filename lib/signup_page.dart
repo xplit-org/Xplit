@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_page.dart';
 import 'otp_page.dart';
-import 'auth_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -18,7 +17,6 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isMobileFocused = false;
   bool _hasMobileText = false;
   bool _isLoading = false;
-  final AuthService _authService = AuthService();
 
   @override
   void initState() {

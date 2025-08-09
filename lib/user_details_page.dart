@@ -2,6 +2,7 @@ import 'package:expenser/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'user_service.dart';
 
 class UserDetailsPage extends StatefulWidget {
   final String mobileNumber;
@@ -492,8 +493,9 @@ Widget _buildCountryCodeSelector() {
     );
   }
 
-  void _handleSubmit() {
-    // TODO: Implement account creation logic with database
+  final UserService userService = UserService();
+
+  void _handleSubmit() async{
     String fullName = _fullNameController.text.trim();
     String recoveryMail = _recoveryMailController.text.trim();
     
@@ -501,15 +503,45 @@ Widget _buildCountryCodeSelector() {
     print('Mobile: ${widget.mobileNumber}');
     print('Email: $recoveryMail');
 
-    // For now, just show a success message
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    String? profilePicUrl;
+    
+    // Only upload if user selected an image
+    if (_image != null) {
+      print('Uploading selected profile picture...');
+      profilePicUrl = await userService.uploadProfilePicture(_image!);
+    } else {
+      print('No profile picture selected, using default.');
+      profilePicUrl = 'default'; // Use a default indicator
+    }
+
+    // Always save user data regardless of profile picture status
+    await userService.saveUserDetails(
+      fullName: fullName,
+      mobileNumber: widget.mobileNumber,
+      recoveryEmail: recoveryMail,
+      profilePicUrl: profilePicUrl ?? 'default',
+    );
+
+    Navigator.pop(context); // Close the loading dialog
+
+    // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Account created successfully!'),
+      SnackBar(
+        content: Text(_image != null 
+          ? 'Account created successfully with profile picture!' 
+          : 'Account created successfully!'),
         backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
       ),
     );
 
-    // TODO: Navigate to dashboard or home page after successful account creation
+    print('User data saved successfully!');
+    // TODO: Navigate to home/dashboard screen
   }
-} 
+}

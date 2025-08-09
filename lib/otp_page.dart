@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_page.dart';
 import 'user_details_page.dart';
-import 'auth_service.dart';
 
 enum OtpPageType { login, signup }
 
@@ -35,7 +34,6 @@ class _OtpPageState extends State<OtpPage> {
     (index) => FocusNode(),
   );
   bool _isVerifying = false;
-  final AuthService _authService = AuthService();
 
   @override
   void dispose() {
@@ -513,7 +511,7 @@ class _OtpPageState extends State<OtpPage> {
     try {
       // TODO: Check if user exists in database
       // For now, we'll simulate checking user data
-      print('🔍 Checking user data in database for: ${widget.mobileNumber}');
+      print('Checking user data in database for: ${widget.mobileNumber}');
       
       // Simulate database check
       await Future.delayed(const Duration(seconds: 1));
@@ -533,38 +531,11 @@ class _OtpPageState extends State<OtpPage> {
           );
           
           // TODO: Navigate to home page
-          print('✅ User found - Navigate to Home/Dashboard');
+          print('User found - Navigate to Home/Dashboard');
           // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomePage()));
         }
-      } else {
-        // User doesn't exist - navigate to user details form to complete registration
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please complete your profile setup.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => UserDetailsPage(
-                mobileNumber: widget.mobileNumber,
-              ),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 300),
-            ),
-          );
-        }
+      }else{
+        // Login Redirect
       }
     } catch (e) {
       if (mounted) {
