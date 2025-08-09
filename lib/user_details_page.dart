@@ -223,7 +223,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
     required String hintText,
     required TextInputType keyboardType,
   }) {
-    return Container(
+    return SizedBox(
       height: 100,
       child: Stack(
         clipBehavior: Clip.none,
@@ -334,7 +334,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
   }
 
   Widget _buildMobileNumberField() {
-    return Container(
+    return SizedBox(
       height: 100,
       child: Stack(
         clipBehavior: Clip.none,

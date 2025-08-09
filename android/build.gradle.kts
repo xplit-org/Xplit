@@ -1,6 +1,4 @@
-plugins {
-  id("com.google.gms.google-services") version "4.4.3" apply false
-}
+// Flutter manages Google Services plugin automatically
 
 allprojects {
     repositories {

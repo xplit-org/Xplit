@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'login_page.dart';
 import 'otp_page.dart';
+import 'auth_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -15,6 +17,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _mobileController = TextEditingController();
   bool _isMobileFocused = false;
   bool _hasMobileText = false;
+  bool _isLoading = false;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -52,16 +56,10 @@ class _SignUpPageState extends State<SignUpPage> {
         child: Column(
           children: [
             // Top Section - Illustration (40% of screen)
-            Expanded(
-              flex: 3,
-              child: _buildTopSection(),
-            ),
+            Expanded(flex: 3, child: _buildTopSection()),
 
             // Bottom Section - Sign Up Form (60% of screen)
-            Expanded(
-              flex: 6,
-              child: _buildBottomSection(),
-            ),
+            Expanded(flex: 6, child: _buildBottomSection()),
           ],
         ),
       ),
@@ -81,7 +79,6 @@ class _SignUpPageState extends State<SignUpPage> {
         ],
       ),
       child: ClipRRect(
-        
         child: Image.asset(
           'assets/image 4.png',
           fit: BoxFit.cover,
@@ -92,17 +89,14 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  Widget _buildPersonIllustration(String emoji, {bool isOnATM = false, bool isOnGround = false, bool isOnMoneyStack = false}) {
+  Widget _buildPersonIllustration(String emoji, {bool isOnGround = false}) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        emoji,
-        style: const TextStyle(fontSize: 24),
-      ),
+      child: Text(emoji, style: const TextStyle(fontSize: 24)),
     );
   }
 
@@ -177,20 +171,20 @@ class _SignUpPageState extends State<SignUpPage> {
         ],
       ),
       padding: const EdgeInsets.all(24),
-             child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-           const SizedBox(height: 20),
-           _buildHeaderSection(),
-           _buildMobileInputField(),
-           const SizedBox(height: 40),
-           _buildContinueButton(),
-           const SizedBox(height: 30),
-           _buildLoginLink(),
-           const Spacer(),
-           _buildTermsAndConditions(),
-         ],
-       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          _buildHeaderSection(),
+          _buildMobileInputField(),
+          const SizedBox(height: 40),
+          _buildContinueButton(),
+          const SizedBox(height: 30),
+          _buildLoginLink(),
+          const Spacer(),
+          _buildTermsAndConditions(),
+        ],
+      ),
     );
   }
 
@@ -220,14 +214,11 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildMobileInputField() {
-    return Container(
+    return SizedBox(
       height: 70,
       child: Stack(
         clipBehavior: Clip.none,
-        children: [
-          _buildInputFieldContainer(),
-          _buildFloatingLabel(),
-        ],
+        children: [_buildInputFieldContainer(), _buildFloatingLabel()],
       ),
     );
   }
@@ -240,10 +231,7 @@ class _SignUpPageState extends State<SignUpPage> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(
-            color: const Color(0xFF2196F3),
-            width: 2,
-          ),
+          border: Border.all(color: const Color(0xFF2196F3), width: 2),
           borderRadius: BorderRadius.circular(20),
         ),
         child: ClipRRect(
@@ -262,23 +250,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Widget _buildCountryCodeSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
       child: Row(
         children: [
-          const Text(
-            '🇮🇳',
-            style: TextStyle(fontSize: 18),
-          ),
+          const Text('🇮🇳', style: TextStyle(fontSize: 18)),
           const SizedBox(width: 6),
           const Text(
             '+91',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -286,42 +265,27 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildSeparator() {
-    return Container(
-      width: 1,
-      height: 24,
-      color: Colors.grey.shade300,
-    );
+    return Container(width: 1, height: 24, color: Colors.grey.shade300);
   }
 
   Widget _buildMobileNumberInput() {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 6,
-          vertical: 0,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
         child: TextField(
           controller: _mobileController,
           focusNode: _mobileFocusNode,
           decoration: const InputDecoration(
             hintText: 'Enter mobile number',
             border: InputBorder.none,
-            hintStyle: TextStyle(
-              color: Colors.grey,
-              fontSize: 16,
-            ),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 0,
-              vertical: 8,
-            ),
+            hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
+            contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
           ),
           keyboardType: TextInputType.numberWithOptions(
             decimal: false,
             signed: false,
           ),
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-          ],
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           enableInteractiveSelection: true,
           autocorrect: false,
           textInputAction: TextInputAction.done,
@@ -341,10 +305,7 @@ class _SignUpPageState extends State<SignUpPage> {
         borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 6,
-            vertical: 0,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
           child: const Text(
             'Mobile Number',
             style: TextStyle(
@@ -363,7 +324,7 @@ class _SignUpPageState extends State<SignUpPage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () => _handleContinueButton(),
+        onPressed: _isLoading ? null : () => _handleContinueButton(),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2196F3),
           foregroundColor: Colors.white,
@@ -372,18 +333,24 @@ class _SignUpPageState extends State<SignUpPage> {
             borderRadius: BorderRadius.circular(20),
           ),
         ),
-        child: const Text(
-          'Continue',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text(
+                'Continue',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
       ),
     );
   }
 
-  void _handleContinueButton() {
+  void _handleContinueButton() async {
     if (_mobileController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -406,24 +373,116 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
 
-    // Navigate to OTP page with the mobile number
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => OtpPage(
-          mobileNumber: _mobileController.text,
-        ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOut;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          var offsetAnimation = animation.drive(tween);
-          return SlideTransition(position: offsetAnimation, child: child);
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Format phone number with country code
+      String phoneNumber = '+91${_mobileController.text}'; // Assuming India (+91)
+      
+      // Send OTP using Firebase Phone Authentication
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) {
+          print('Auto-verification completed');
+          // This can happen on Android when SMS is auto-retrieved
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Auto-verification completed!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
         },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
+        verificationFailed: (FirebaseAuthException e) {
+          print('Verification failed: ${e.message}');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Verification failed: ${e.message}'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          print('OTP sent successfully! Verification ID: $verificationId');
+          if (mounted) {
+            // Show success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('OTP sent successfully! Check your phone for the verification code.'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+            
+            // Navigate to OTP page with the mobile number and verification ID
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    OtpPage(
+                      mobileNumber: _mobileController.text,
+                      verificationId: verificationId,
+                      pageType: OtpPageType.signup,
+                      resendToken: resendToken,
+                    ),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                      const begin = Offset(1.0, 0.0);
+                      const end = Offset.zero;
+                      const curve = Curves.easeInOut;
+                      var tween = Tween(
+                        begin: begin,
+                        end: end,
+                      ).chain(CurveTween(curve: curve));
+                      var offsetAnimation = animation.drive(tween);
+                      return SlideTransition(
+                        position: offsetAnimation,
+                        child: child,
+                      );
+                    },
+                transitionDuration: const Duration(milliseconds: 300),
+              ),
+            );
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          print('OTP auto-retrieval timeout');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('OTP timeout - but request was sent. Please check your phone.'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        },
+        timeout: const Duration(seconds: 60),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send OTP: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Widget _buildLoginLink() {
@@ -433,15 +492,23 @@ class _SignUpPageState extends State<SignUpPage> {
           Navigator.pushReplacement(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(-1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const LoginPage(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    const begin = Offset(-1.0, 0.0);
+                    const end = Offset.zero;
+                    const curve = Curves.easeInOut;
+                    var tween = Tween(
+                      begin: begin,
+                      end: end,
+                    ).chain(CurveTween(curve: curve));
+                    var offsetAnimation = animation.drive(tween);
+                    return SlideTransition(
+                      position: offsetAnimation,
+                      child: child,
+                    );
+                  },
               transitionDuration: const Duration(milliseconds: 300),
             ),
           );
@@ -510,14 +577,11 @@ class BackgroundPatternPainter extends CustomPainter {
 
     for (double y = 0; y < size.height; y += spacing) {
       for (double x = 0; x < size.width; x += spacing) {
-        canvas.drawRect(
-          Rect.fromLTWH(x, y, squareSize, squareSize),
-          paint,
-        );
+        canvas.drawRect(Rect.fromLTWH(x, y, squareSize, squareSize), paint);
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-} 
+}
