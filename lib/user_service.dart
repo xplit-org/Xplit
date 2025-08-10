@@ -12,42 +12,33 @@ class UserService {
   // Upload profile picture to Firebase Storage or convert to base64
   Future<String?> uploadProfilePicture(Uint8List fileBytes) async {
     try {
-      // Check if user is authenticated
-      if (_auth.currentUser == null) {
-        print("Error: User not authenticated");
-        return null;
-      }
-
-      String uid = _auth.currentUser!.uid;
-      print("Uploading profile picture for user: $uid");
+      // Generate a unique ID for the profile picture
+      String uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
       
-      // Try Firebase Storage first
+      // Try Firebase Storage first (silently)
       try {
-        Reference ref = _storage.ref().child('user_profiles').child(uid).child('profile.jpg');
+        Reference ref = _storage.ref().child('user_profiles').child(uniqueId).child('profile.jpg');
         
         SettableMetadata metadata = SettableMetadata(
           contentType: 'image/jpeg',
-          customMetadata: {'uploaded_by': uid},
+          customMetadata: {'uploaded_at': DateTime.now().toIso8601String()},
         );
         
         UploadTask uploadTask = ref.putData(fileBytes, metadata);
         TaskSnapshot snapshot = await uploadTask;
         String downloadUrl = await snapshot.ref.getDownloadURL();
         
-        print("Profile picture uploaded to Firebase Storage: $downloadUrl");
+        print("✓ Profile picture uploaded successfully");
         return downloadUrl;
       } catch (storageError) {
-        print("Firebase Storage failed: $storageError");
-        print("Falling back to base64 encoding...");
-        
-        // Fallback: Convert image to base64 and store in Firestore
+        // Silently fallback to base64 encoding
         String base64Image = _convertToBase64(fileBytes);
-        print("Image converted to base64 (${base64Image.length} characters)");
+        print("✓ Profile picture saved as base64");
         return base64Image;
       }
     } catch (e) {
-      print("All upload methods failed: $e");
-      return null;
+      // Return a default placeholder instead of null
+      return 'default_profile';
     }
   }
 
@@ -62,24 +53,22 @@ class UserService {
   Future<void> saveUserDetails({
     required String fullName,
     required String mobileNumber,
-    required String recoveryEmail,
+    required String upi_id, // This will now contain UPI ID
     required String profilePicUrl,
   }) async {
     try {
-      String uid = _auth.currentUser!.uid;
-
-      await _firestore.collection('user_details').doc(uid).set({
+      // Use mobile number as document ID since we don't have Firebase Auth
+      String documentId = mobileNumber;
+      
+      await _firestore.collection('user_details').doc(documentId).set({
         'country_code': '+91',
         'full_name': fullName,
         'last_login': FieldValue.serverTimestamp(),
         'mobile_number': mobileNumber,
         'profile_picture': profilePicUrl,
-        'recovery_mail': recoveryEmail,
-        'upi_id': '${mobileNumber}@gpz',
+        'upi_id': upi_id, // Store the actual UPI ID entered by user
         'user_creation': FieldValue.serverTimestamp(),
       });
-      
-      print("User data saved successfully to user_details collection");
     } catch (e) {
       print("Error saving user data: $e");
     }

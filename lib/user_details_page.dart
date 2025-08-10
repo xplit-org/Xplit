@@ -2,6 +2,7 @@ import 'package:expenser/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:qr_code_tools/qr_code_tools.dart';
 import 'user_service.dart';
 
 class UserDetailsPage extends StatefulWidget {
@@ -15,9 +16,9 @@ class UserDetailsPage extends StatefulWidget {
 
 class _UserDetailsPageState extends State<UserDetailsPage> {
   final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _recoveryMailController = TextEditingController();
+  final TextEditingController _upiIdController = TextEditingController();
   final FocusNode _fullNameFocusNode = FocusNode();
-  final FocusNode _recoveryMailFocusNode = FocusNode();
+  final FocusNode _upiIdFocusNode = FocusNode();
 
   Uint8List? _image;
   void selectProfilePic() async{
@@ -37,9 +38,9 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _recoveryMailController.dispose();
+    _upiIdController.dispose();
     _fullNameFocusNode.dispose();
-    _recoveryMailFocusNode.dispose();
+    _upiIdFocusNode.dispose();
     super.dispose();
   }
 
@@ -205,13 +206,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
           keyboardType: TextInputType.name,
         ),
         _buildMobileNumberField(),
-        _buildFloatingLabelInputField(
-          controller: _recoveryMailController,
-          focusNode: _recoveryMailFocusNode,
-          label: 'Recovery Mail',
-          hintText: 'Enter your email address',
-          keyboardType: TextInputType.emailAddress,
-        ),
+        _buildUpiIdField(),
       ],
     );
   }
@@ -348,6 +343,20 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
     );
   }
 
+  Widget _buildUpiIdField() {
+    return SizedBox(
+      height: 100,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          _buildUpiInputFieldContainer(),
+          _buildUpiFloatingLabel(),
+          _buildUpiIdContent(),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMobileInputFieldContainer() {
     return Positioned(
       top: 40,
@@ -464,10 +473,246 @@ Widget _buildCountryCodeSelector() {
     );
   }
 
+  Widget _buildUpiInputFieldContainer() {
+    return Positioned(
+      top: 40,
+      left: 0,
+      right: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: const Color(0xFF2196F3),
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Container(
+              height: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUpiFloatingLabel() {
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      top: 30,
+      left: 12,
+      child: Material(
+        borderRadius: BorderRadius.circular(4),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 0,
+          ),
+          child: const Text(
+            'UPI ID',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF2196F3),
+              backgroundColor: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUpiIdContent() {
+    return Positioned(
+      top: 40,
+      left: 0,
+      right: 0,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 5, 0),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _upiIdController,
+                focusNode: _upiIdFocusNode,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  hintText: 'Enter UPI ID (e.g., user@upi)',
+                  hintStyle: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
+                  ),
+                ),
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                onPressed: _scanQrCode,
+                icon: const Icon(
+                  Icons.qr_code_scanner,
+                  color: Color(0xFF2196F3),
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _scanQrCode() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image == null) {
+        _showSnack("No image selected", Colors.orange);
+        return;
+      }
+
+      // Show loading with processing message
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                "Processing QR Code...",
+                style: TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Decode QR from image file using qr_code_tools
+      final String? qrData = await QrCodeToolsPlugin.decodeFrom(image.path);
+
+      Navigator.pop(context); // Close loading
+
+      if (qrData != null && qrData.isNotEmpty) {
+        debugPrint("QR Code decoded: $qrData");
+        _extractUpiId(qrData);
+      } else {
+        _showSnack("No QR code found in this image.", Colors.orange);
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      _showSnack("Error processing image: $e", Colors.red);
+    }
+  }
+
+  void _extractUpiId(String qrData) {
+    String upiId = '';
+
+    if (qrData.startsWith('upi://pay')) {
+      try {
+        final uri = Uri.parse(qrData);
+        upiId = uri.queryParameters['pa'] ?? '';
+        debugPrint("Extracted UPI ID from URI: $upiId");
+      } catch (e) {
+        debugPrint("Error parsing UPI URI: $e");
+      }
+    } else if (qrData.contains('@')) {
+      upiId = qrData;
+      debugPrint("Using simple UPI ID: $upiId");
+    } else {
+      final match = RegExp(r'[\w.-]+@[\w.-]+').firstMatch(qrData);
+      upiId = match?.group(0) ?? '';
+      debugPrint("Extracted UPI ID from pattern: $upiId");
+    }
+
+    if (upiId.isNotEmpty) {
+      setState(() => _upiIdController.text = upiId);
+      _showSnack("UPI ID successfully extracted: $upiId", Colors.green);
+      
+      // Show confirmation dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("UPI ID Extracted"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("The following UPI ID was extracted from the QR code:"),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  upiId,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text("Is this correct?"),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showSnack("Please try a different QR code", Colors.orange);
+              },
+              child: const Text("No, try again"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Yes, confirm"),
+            ),
+          ],
+        ),
+      );
+    } else {
+      _showSnack("QR code detected but no UPI ID found. Please try another QR code.", Colors.orange);
+    }
+  }
+
+  void _showSnack(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message), 
+        backgroundColor: color, 
+        duration: const Duration(seconds: 3)
+      ),
+    );
+  }
 
   Widget _buildSubmitButton() {
     bool isFormValid = _fullNameController.text.isNotEmpty && 
-                      _recoveryMailController.text.isNotEmpty;
+                      _upiIdController.text.isNotEmpty;
 
     return SizedBox(
       width: double.infinity,
@@ -497,11 +742,7 @@ Widget _buildCountryCodeSelector() {
 
   void _handleSubmit() async{
     String fullName = _fullNameController.text.trim();
-    String recoveryMail = _recoveryMailController.text.trim();
-    
-    print('Creating account for: $fullName');
-    print('Mobile: ${widget.mobileNumber}');
-    print('Email: $recoveryMail');
+    String upiId = _upiIdController.text.trim();
 
     // Show loading indicator
     showDialog(
@@ -514,18 +755,16 @@ Widget _buildCountryCodeSelector() {
     
     // Only upload if user selected an image
     if (_image != null) {
-      print('Uploading selected profile picture...');
       profilePicUrl = await userService.uploadProfilePicture(_image!);
     } else {
-      print('No profile picture selected, using default.');
-      profilePicUrl = 'default'; // Use a default indicator
+      profilePicUrl = 'default';
     }
 
     // Always save user data regardless of profile picture status
     await userService.saveUserDetails(
       fullName: fullName,
-      mobileNumber: widget.mobileNumber,
-      recoveryEmail: recoveryMail,
+      mobileNumber: '+91${widget.mobileNumber}',
+      upi_id: upiId, // Using UPI ID instead of recovery email
       profilePicUrl: profilePicUrl ?? 'default',
     );
 
@@ -541,7 +780,8 @@ Widget _buildCountryCodeSelector() {
       ),
     );
 
-    print('User data saved successfully!');
+    print('Account created successfully');
     // TODO: Navigate to home/dashboard screen
   }
 }
+
