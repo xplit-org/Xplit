@@ -1,8 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
-import 'login_page.dart';
-import 'user_details_page.dart';
+import 'home_page.dart';
+import 'expenses.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,8 +30,9 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
+        scaffoldBackgroundColor: Colors.white,
       ),
-      home: const UserDetailsPage(mobileNumber: "7887229095"),//LoginPage(),
+      home: const ExpensesPage(),//UserDetailsPage(mobileNumber: "7887229095"),//LoginPage(),
     );
   }
 }
