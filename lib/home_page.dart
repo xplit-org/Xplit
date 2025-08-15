@@ -240,24 +240,26 @@ class HomePage extends StatelessWidget {
           // Widgets list
           SizedBox(height: 5),
           Expanded(
-            child: ListView(
-              children: [
-                // Generate widgets from dummy data
-                ...DummyData.allData.map((data) {
-                  if (data["type"] == 1) {
-                    return SplitByMeWidget(data: data);
-                  } else if (data["type"] == 0) {
-                    if(data["status"] == "Paid") {
-                      return PaidWidget(data: data);
-                    } else {
-                      return UnpaidWidget(data: data);
-                    }
-                  } 
+            child: DummyData.allData.isEmpty 
+                ? _buildEmptyState()
+                : ListView(
+                    children: [
+                      // Generate widgets from dummy data
+                      ...DummyData.allData.map((data) {
+                        if (data["type"] == 1) {
+                          return SplitByMeWidget(data: data);
+                        } else if (data["type"] == 0) {
+                          if(data["status"] == "Paid") {
+                            return PaidWidget(data: data);
+                          } else {
+                            return UnpaidWidget(data: data);
+                          }
+                        } 
 
-                  return UnpaidWidget(data: data);
-                }),
-              ],
-            ),
+                        return UnpaidWidget(data: data);
+                      }),
+                    ],
+                  ),
           ),
 
           // Bottom button
@@ -299,6 +301,40 @@ class HomePage extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/null.jpg',
+            height: 200,
+            width: 200,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'No split expenses',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Create your first split expense to get started',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

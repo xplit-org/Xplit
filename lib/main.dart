@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: const ExpensesPage(),//UserDetailsPage(mobileNumber: "7887229095"),//LoginPage(),
+      home: const HomePage(),//UserDetailsPage(mobileNumber: "7887229095"),//LoginPage(),
     );
   }
 }

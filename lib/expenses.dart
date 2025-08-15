@@ -10,39 +10,64 @@ class ExpensesPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back),
-         onPressed: () {
-          Navigator.pop(context);
-        }),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
         title: const Text("Expenses"),
-       
       ),
       body: DefaultTabController(
         length: 2,
         child: Column(
           children: [
             const TabBar(
-              labelColor: Color(0xFF29B6F6),
+              labelColor: Colors.black,
               unselectedLabelColor: Colors.black,
               indicatorColor: Color(0xFF29B6F6),
               indicatorSize: TabBarIndicatorSize.tab,
               tabs: [
-                Tab(text: "Owed to me"),
-                Tab(text: "Owed by me"),
+                Tab(
+                  child: Column(
+                    children: [
+                      Text("Owed to me"),
+                      Text(
+                        "₹ 200.00",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Column(
+                    children: [
+                      Text("Owed by me"),
+                      Text(
+                        "₹ 500.00",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
             Expanded(
               child: const TabBarView(
-                children: [
-                  OwedToMeWidget(),
-                  OwedByMeWidget(),
-                ],
+                children: [OwedToMeWidget(), OwedByMeWidget()],
               ),
             ),
           ],
         ),
       ),
-      
     );
   }
 }
