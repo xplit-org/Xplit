@@ -41,6 +41,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   image_picker: ^1.0.7
   qr_code_tools: ^0.2.0
+  sqflite: ^2.3.0
 
 dev_dependencies:
   flutter_test:

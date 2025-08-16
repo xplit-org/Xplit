@@ -1,8 +1,13 @@
+// ignore_for_file: dead_code
+
+import 'package:expenser/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_page.dart';
 import 'user_details_page.dart';
+import 'logic/create_local_db.dart';
+import 'home_page.dart';
 
 enum OtpPageType { login, signup }
 
@@ -13,7 +18,7 @@ class OtpPage extends StatefulWidget {
   final OtpPageType pageType;
 
   const OtpPage({
-    super.key, 
+    super.key,
     required this.mobileNumber,
     required this.verificationId,
     required this.pageType,
@@ -76,7 +81,7 @@ class _OtpPageState extends State<OtpPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black,
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -122,7 +127,7 @@ class _OtpPageState extends State<OtpPage> {
           const SizedBox(height: 40),
           _buildResendOtpSection(),
           const Spacer(),
-          _buildBackToSignUpLink(),
+          _buildBackToLink(),
         ],
       ),
     );
@@ -131,16 +136,18 @@ class _OtpPageState extends State<OtpPage> {
   Widget _buildHeaderSection() {
     return Column(
       children: [
-                 Center(
-           child: Text(
-             widget.pageType == OtpPageType.login ? 'Login Verification' : 'Verify OTP',
-             style: const TextStyle(
-               fontSize: 28,
-               fontWeight: FontWeight.bold,
-               color: Colors.black,
-             ),
-           ),
-         ),
+        Center(
+          child: Text(
+            widget.pageType == OtpPageType.login
+                ? 'Login Verification'
+                : 'Verify OTP',
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+        ),
         const SizedBox(height: 8),
         Center(
           child: RichText(
@@ -258,7 +265,9 @@ class _OtpPageState extends State<OtpPage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: (_isOtpComplete() && !_isVerifying) ? () => _verifyOtp() : null,
+        onPressed: (_isOtpComplete() && !_isVerifying)
+            ? () => _verifyOtp()
+            : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: _isOtpComplete()
               ? const Color(0xFF2196F3)
@@ -313,7 +322,7 @@ class _OtpPageState extends State<OtpPage> {
     );
   }
 
-  Widget _buildBackToSignUpLink() {
+  Widget _buildBackToLink() {
     return Center(
       child: GestureDetector(
         onTap: () {
@@ -321,7 +330,9 @@ class _OtpPageState extends State<OtpPage> {
             context,
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
-                  const SignUpPage(),
+                  widget.pageType == OtpPageType.login
+                  ? const LoginPage()
+                  : const SignUpPage(),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) {
                     const begin = Offset(1.0, 0.0);
@@ -342,7 +353,7 @@ class _OtpPageState extends State<OtpPage> {
           );
         },
         child: RichText(
-          text: const TextSpan(
+          text: TextSpan(
             style: TextStyle(fontSize: 16),
             children: [
               TextSpan(
@@ -350,7 +361,9 @@ class _OtpPageState extends State<OtpPage> {
                 style: TextStyle(color: Colors.black54),
               ),
               TextSpan(
-                text: 'Sign Up',
+                text: widget.pageType == OtpPageType.login
+                    ? 'Login'
+                    : 'Sign Up',
                 style: TextStyle(
                   color: Color(0xFF2196F3),
                   fontWeight: FontWeight.w600,
@@ -383,8 +396,9 @@ class _OtpPageState extends State<OtpPage> {
       );
 
       // Sign in with the credential
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
       if (userCredential.user != null && mounted) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -396,33 +410,38 @@ class _OtpPageState extends State<OtpPage> {
         );
 
         // Navigate based on page type after a short delay
-         Future.delayed(const Duration(milliseconds: 1200), () {
-           if (mounted) {
-             if (widget.pageType == OtpPageType.signup) {
-               // For signup: Navigate to user details form
-               Navigator.pushReplacement(
-                 context,
-                 PageRouteBuilder(
-                   pageBuilder: (context, animation, secondaryAnimation) => UserDetailsPage(
-                     mobileNumber: widget.mobileNumber,
-                   ),
-                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                     const begin = Offset(1.0, 0.0);
-                     const end = Offset.zero;
-                     const curve = Curves.easeInOut;
-                     var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                     var offsetAnimation = animation.drive(tween);
-                     return SlideTransition(position: offsetAnimation, child: child);
-                   },
-                   transitionDuration: const Duration(milliseconds: 300),
-                 ),
-               );
-                           } else {
-                // For login: Check user data in database and navigate accordingly
-                _handleLoginSuccess();
-              }
-           }
-         });
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (mounted) {
+            if (widget.pageType == OtpPageType.signup) {
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      UserDetailsPage(mobileNumber: widget.mobileNumber),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(1.0, 0.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeInOut;
+                        var tween = Tween(
+                          begin: begin,
+                          end: end,
+                        ).chain(CurveTween(curve: curve));
+                        var offsetAnimation = animation.drive(tween);
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
+                  transitionDuration: const Duration(milliseconds: 300),
+                ),
+              );
+            } else {
+              // For login: Check user data in database and navigate accordingly
+              _handleLoginSuccess();
+            }
+          }
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -447,7 +466,7 @@ class _OtpPageState extends State<OtpPage> {
     try {
       // Format phone number with country code
       String phoneNumber = '+91${widget.mobileNumber}'; // Assuming India (+91)
-      
+
       // Send OTP again using Firebase
       await FirebaseAuth.instance.verifyPhoneNumber(
         phoneNumber: phoneNumber,
@@ -467,7 +486,9 @@ class _OtpPageState extends State<OtpPage> {
           }
         },
         codeSent: (String verificationId, int? resendToken) {
-          print('OTP resent successfully! New Verification ID: $verificationId');
+          print(
+            'OTP resent successfully! New Verification ID: $verificationId',
+          );
           // Update the verification ID for the new OTP
           setState(() {
             // Clear all OTP input fields
@@ -477,11 +498,13 @@ class _OtpPageState extends State<OtpPage> {
             // Focus on the first OTP field
             _otpFocusNodes[0].requestFocus();
           });
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('OTP resent successfully! Check your phone for the new verification code.'),
+                content: Text(
+                  'OTP resent successfully! Check your phone for the new verification code.',
+                ),
                 backgroundColor: Colors.blue,
                 duration: Duration(seconds: 2),
               ),
@@ -509,39 +532,58 @@ class _OtpPageState extends State<OtpPage> {
 
   void _handleLoginSuccess() async {
     try {
-      // TODO: Check if user exists in database
-      // For now, we'll simulate checking user data
-      print('Checking user data in database for: ${widget.mobileNumber}');
-      
-      // Simulate database check
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // TODO: Replace this with actual database check
-      bool userExists = true; // This should come from your database
-      
-      if (userExists) {
-        // User exists - navigate to home/dashboard
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login successful! Welcome back.'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          
-          // TODO: Navigate to home page
-          print('User found - Navigate to Home/Dashboard');
-          // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomePage()));
-        }
-      }else{
-        // Login Redirect
+      // Initialize local database and sync data
+      print(
+        'Initializing local database and syncing data for: ${widget.mobileNumber}',
+      );
+
+      // Initialize the local database
+      final db = await LocalDB.database;
+      print('Local database initialized');
+
+      // Sync user data from Firebase
+      await LocalDB().syncUserData(widget.mobileNumber);
+      print('User data synced from Firebase');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login successful! Data synced locally.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        print('User found - Navigate to Home/Dashboard');
+
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => HomePage(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  var tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  var offsetAnimation = animation.drive(tween);
+                  return SlideTransition(
+                    position: offsetAnimation,
+                    child: child,
+                  );
+                },
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error checking user data: ${e.toString()}'),
+            content: Text('Error syncing data: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

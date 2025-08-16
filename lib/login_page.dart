@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_page.dart';
 import 'otp_page.dart';
+import 'user_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,8 +15,6 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final FocusNode _mobileFocusNode = FocusNode();
   final TextEditingController _mobileController = TextEditingController();
-  bool _isMobileFocused = false;
-  bool _hasMobileText = false;
   bool _isLoading = false;
 
   @override
@@ -23,12 +22,10 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _mobileFocusNode.addListener(() {
       setState(() {
-        _isMobileFocused = _mobileFocusNode.hasFocus;
       });
     });
     _mobileController.addListener(() {
       setState(() {
-        _hasMobileText = _mobileController.text.isNotEmpty;
       });
     });
   }
@@ -295,12 +292,21 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildContinueButton() {
+    // Check if mobile number meets validation conditions
+    bool isMobileValid = _mobileController.text.isNotEmpty && 
+                        _mobileController.text.length == 10;
+    
+    // Button is disabled if loading OR if mobile number is invalid
+    bool isButtonDisabled = _isLoading || !isMobileValid;
+    
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleContinueButton,
+        onPressed: isButtonDisabled ? null : _handleContinueButton,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2196F3),
+          backgroundColor: isButtonDisabled 
+              ? Colors.grey.shade400 
+              : const Color(0xFF2196F3),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 13),
           shape: RoundedRectangleBorder(
@@ -316,11 +322,12 @@ class _LoginPageState extends State<LoginPage> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
+            : Text(
                 'Continue',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: isButtonDisabled ? Colors.grey.shade600 : Colors.white,
                 ),
               ),
       ),
@@ -358,91 +365,129 @@ class _LoginPageState extends State<LoginPage> {
       // Format phone number with country code
       String phoneNumber = '+91${_mobileController.text}'; // Assuming India (+91)
       
-      // Send OTP using Firebase Phone Authentication
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        verificationCompleted: (PhoneAuthCredential credential) {
-          print('Auto-verification completed');
-          // This can happen on Android when SMS is auto-retrieved
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Auto-verification completed!'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          print('Verification failed: ${e.message}');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Verification failed: ${e.message}'),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          print('OTP sent successfully! Verification ID: $verificationId');
-          if (mounted) {
-            // Show success message
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('OTP sent successfully! Check your phone for the verification code.'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 3),
-              ),
-            );
-            
-            // Navigate to OTP page with the mobile number and verification ID
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) =>
-                    OtpPage(
-                      mobileNumber: _mobileController.text,
-                      verificationId: verificationId,
-                      pageType: OtpPageType.login,
-                      resendToken: resendToken,
-                    ),
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) {
-                      const begin = Offset(1.0, 0.0);
-                      const end = Offset.zero;
-                      const curve = Curves.easeInOut;
-                      var tween = Tween(
-                        begin: begin,
-                        end: end,
-                      ).chain(CurveTween(curve: curve));
-                      var offsetAnimation = animation.drive(tween);
-                      return SlideTransition(
-                        position: offsetAnimation,
-                        child: child,
-                      );
-                    },
-                transitionDuration: const Duration(milliseconds: 300),
-              ),
-            );
-          }
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          print('OTP auto-retrieval timeout');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('OTP timeout - but request was sent. Please check your phone.'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        },
-        timeout: const Duration(seconds: 60),
-      );
+      // Check if user exists in database before sending OTP
+      UserService userService = UserService();
+      bool userExists = await userService.checkUserExists(_mobileController.text);
+      
+      if (!userExists) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Mobile number not registered. Please sign up first.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          
+          // Navigate to signup page after showing message
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const SignUpPage(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(1.0, 0.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOut;
+                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                var offsetAnimation = animation.drive(tween);
+                return SlideTransition(position: offsetAnimation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 300),
+            ),
+          );
+        }
+        return;
+      }
+      else{
+        // Send OTP using Firebase Phone Authentication
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: phoneNumber,
+          verificationCompleted: (PhoneAuthCredential credential) {
+            print('Auto-verification completed');
+            // This can happen on Android when SMS is auto-retrieved
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Auto-verification completed!'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            print('Verification failed: ${e.message}');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Verification failed: ${e.message}'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            print('OTP sent successfully! Verification ID: $verificationId');
+            if (mounted) {
+              // Show success message
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('OTP sent successfully! Check your phone for the verification code.'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+              
+              // Navigate to OTP page with the mobile number and verification ID
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      OtpPage(
+                        mobileNumber: _mobileController.text,
+                        verificationId: verificationId,
+                        pageType: OtpPageType.login,
+                        resendToken: resendToken,
+                      ),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(1.0, 0.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeInOut;
+                        var tween = Tween(
+                          begin: begin,
+                          end: end,
+                        ).chain(CurveTween(curve: curve));
+                        var offsetAnimation = animation.drive(tween);
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
+                  transitionDuration: const Duration(milliseconds: 300),
+                ),
+              );
+            }
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {
+            print('OTP auto-retrieval timeout');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('OTP timeout - but request was sent. Please check your phone.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          },
+          timeout: const Duration(seconds: 60),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

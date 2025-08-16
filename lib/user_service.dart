@@ -49,6 +49,17 @@ class UserService {
     return 'data:image/jpeg;base64,$base64String';
   }
 
+  // Check if user exists in database
+  Future<bool> checkUserExists(String mobileNumber) async {
+    try {
+      DocumentSnapshot doc = await _firestore.collection('user_details').doc('+91$mobileNumber').get();
+      return doc.exists;
+    } catch (e) {
+      print("Error checking user existence: $e");
+      return false;
+    }
+  }
+
   // Save user info to Firestore with exact schema match
   Future<void> saveUserDetails({
     required String fullName,
