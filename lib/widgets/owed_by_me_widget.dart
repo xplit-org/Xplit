@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../owed_by_me_expenses.dart';
 
 
 class Data {
@@ -37,34 +38,45 @@ class OwedByMeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if there are any expenses
+    if (Data.allData.isEmpty) {
+      return _buildEmptyState();
+    }
+    
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
       itemCount: Data.allData.length,
       itemBuilder: (context, index) {
-                 return Card(
-           margin: const EdgeInsets.only(bottom: 12.0),
-           elevation: 2,
-           shadowColor: Colors.transparent,
-           color: Colors.transparent, // Background color of the card
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => OwedByMeExpensesPage(
+                  userName: Data.allData[index]["name"],
+                  totalAmount: Data.allData[index]["amount"],
+                  requestCount: Data.allData[index]["requests"],
+                ),
+              ),
+            );
+          },
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12.0),
+            elevation: 2,
+            shadowColor: Colors.transparent,
+            color: Colors.transparent, // Background color of the card
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
                 // Profile Avatar
                 CircleAvatar(
-                  radius: 25,
-                  backgroundColor: Colors.red[100],
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                    ),
+                    radius: 20,
+                    backgroundImage: const AssetImage("assets/profilepic.png"),
                   ),
-                ),
                 const SizedBox(width: 16),
                 
                 // User Details
@@ -108,8 +120,42 @@ class OwedByMeWidget extends StatelessWidget {
               ],
             ),
           ),
-        );
+        )        );
       },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/null.jpg',
+            height: 200,
+            width: 200,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'No expenses owed by you',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'When you owe money to someone, it will appear here',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 } 
