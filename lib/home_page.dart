@@ -3,6 +3,7 @@ import 'widgets/unpaid_widget.dart';
 import 'widgets/paid_widget.dart';
 import 'widgets/splitByMeWidget.dart';
 import 'expenses.dart';
+import 'user_dashboard.dart';
 
 class DummyData {
 
@@ -139,9 +140,14 @@ class HomePage extends StatelessWidget {
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundImage: AssetImage("assets/profilepic.png"),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const UserDashboard()));
+                  },
+                  child: CircleAvatar(
+                    radius: 25,
+                    backgroundImage: AssetImage("assets/profilepic.png"),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
