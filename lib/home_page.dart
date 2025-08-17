@@ -6,6 +6,7 @@ import 'widgets/unpaid_widget.dart';
 import 'widgets/paid_widget.dart';
 import 'widgets/splitByMeWidget.dart';
 import 'expenses.dart';
+import 'user_dashboard.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -134,12 +135,14 @@ class _HomePageState extends State<HomePage> {
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundImage: _getProfileImageProvider(_userProfile['profile_picture']),
-                  child: _getProfileImageProvider(_userProfile['profile_picture']) == null
-                      ? const Icon(Icons.person)
-                      : null,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const UserDashboard()));
+                  },
+                  child: CircleAvatar(
+                    radius: 25,
+                    backgroundImage: AssetImage("assets/profilepic.png"),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
