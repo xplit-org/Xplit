@@ -1,9 +1,42 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 class SplitByMeWidget extends StatelessWidget {
   final Map<String, dynamic> data;
   
   const SplitByMeWidget({Key? key, required this.data}) : super(key: key);
+
+  // Helper function to create ImageProvider for profile pictures
+  ImageProvider? _getProfileImageProvider(String? profilePicture) {
+    if (profilePicture == null || profilePicture.isEmpty) {
+      return null;
+    }
+    
+    // Check if it's a base64 image
+    if (profilePicture.startsWith('data:image/')) {
+      try {
+        // Extract base64 data from the data URL
+        final base64Data = profilePicture.split(',')[1];
+        final bytes = base64Decode(base64Data);
+        return MemoryImage(bytes);
+      } catch (e) {
+        print('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    
+    // Check if it's a network URL
+    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      return NetworkImage(profilePicture);
+    }
+    
+    // If it's a local asset path
+    if (profilePicture.startsWith('assets/')) {
+      return AssetImage(profilePicture);
+    }
+    
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +166,10 @@ class SplitByMeWidget extends StatelessWidget {
           // Profile picture
           CircleAvatar(
             radius: 20,
-            backgroundImage: AssetImage(data["profilePic"]),
+            backgroundImage: _getProfileImageProvider(data["profilePic"]),
+            child: _getProfileImageProvider(data["profilePic"]) == null
+                ? const Icon(Icons.person)
+                : null,
           ),
         ],
       ),
