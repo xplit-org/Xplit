@@ -1,3 +1,4 @@
+import 'package:expenser/split_amount.dart';
 import 'package:flutter/material.dart';
 import 'widgets/unpaid_widget.dart';
 import 'widgets/paid_widget.dart';
@@ -295,7 +296,7 @@ class HomePage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 6),
                 ),
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ExpensesPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SplitAmountPage()));
                   // Handle split expense button press
                 },
                 child: const Text(
