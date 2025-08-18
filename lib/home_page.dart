@@ -1,104 +1,99 @@
 import 'package:expenser/split_amount.dart';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'logic/get_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'widgets/unpaid_widget.dart';
 import 'widgets/paid_widget.dart';
 import 'widgets/splitByMeWidget.dart';
 import 'expenses.dart';
 import 'user_dashboard.dart';
 
-class DummyData {
 
-// Paid split requests (received by current user)
-  static final List<Map<String, dynamic>> allData = [
-    // Paid Requests
-    {
-      "type": 0,
-      "name": "Mukhtar",
-      "profilePic": "assets/profilepic.png",
-      "time": "6:35 pm",
-      "amount": 200.0,
-      "status": "Paid",
-      "paidTime": "10:20 pm",
-      "description": "Dinner"
-    },
-    {
-      "type": 0,
-      "name": "Sara Khan",
-      "profilePic": "assets/profilepic.png",
-      "time": "4:15 pm",
-      "amount": 120.0,
-      "status": "Paid",
-      "paidTime": "7:30 pm",
-      "description": "Movie tickets"
-    },
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
-    // My Splits
-    {
-      "type": 1,
-      "name": "Mohammad Suhail",
-      "profilePic": "assets/profilepic.png",
-      "time": "12:05 pm",
-      "amount": 160.0,
-      "paidCount": 2,
-      "totalCount": 8,
-      "remainingAmount": 80.0,
-      "description": "Team lunch",
-    },
-    {
-      "type": 1,
-      "name": "Mohammad Suhail",
-      "profilePic": "assets/profilepic.png",
-      "time": "8:00 am",
-      "amount": 90.0,
-      "paidCount": 3,
-      "totalCount": 3,
-      "remainingAmount": 60.0,
-      "description": "Breakfast",
-    },
-
-    // Unpaid Requests
-    {
-      "type": 0,
-      "name": "Aatif Aftab",
-      "profilePic": "assets/profilepic.png",
-      "time": "8:05 am",
-      "amount": 210.0,
-      "status": "Unpaid",
-      "description": "Lunch at restaurant"
-    },
-    {
-      "type": 0,
-      "name": "Zaid Ahmad",
-      "profilePic": "assets/profilepic.png",
-      "time": "9:30 am",
-      "amount": 16.0,
-      "status": "Unpaid",
-      "description": "Coffee break"
-    },
-    {
-      "type": 0,
-      "name": "Faizan Khan",
-      "profilePic": "assets/profilepic.png",
-      "time": "11:15 am",
-      "amount": 45.0,
-      "status": "Unpaid",
-      "description": "Snacks"
-    },
-    {
-      "type": 0,
-      "name": "Ahmed Ali",
-      "profilePic": "assets/profilepic.png",
-      "time": "2:20 pm",
-      "amount": 75.0,
-      "status": "Unpaid",
-      "description": "Transport fare"
-    },
-  ];
-
+  @override
+  State<HomePage> createState() => _HomePageState();
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class _HomePageState extends State<HomePage> {
+  // Helper function to create ImageProvider for profile pictures
+  ImageProvider? _getProfileImageProvider(String? profilePicture) {
+    if (profilePicture == null || profilePicture.isEmpty) {
+      return null;
+    }
+    
+    // Check if it's a base64 image
+    if (profilePicture.startsWith('data:image/')) {
+      try {
+        // Extract base64 data from the data URL
+        final base64Data = profilePicture.split(',')[1];
+        final bytes = base64Decode(base64Data);
+        return MemoryImage(bytes);
+      } catch (e) {
+        print('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    
+    // Check if it's a network URL
+    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      return NetworkImage(profilePicture);
+    }
+    
+    // If it's a local asset path
+    if (profilePicture.startsWith('assets/')) {
+      return AssetImage(profilePicture);
+    }
+    
+    return null;
+  }
+
+  List<Map<String, dynamic>> _allData = [];
+  Map<String, dynamic> _userProfile = {};
+  Map<String, double> _totalAmounts = {'owedToMe': 0.0, 'owedByMe': 0.0};
+  bool _isLoading = true;
+  String? _currentUserMobile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      // Get current user's mobile number
+      final user = FirebaseAuth.instance.currentUser;
+      _currentUserMobile = user?.phoneNumber;
+      if (_currentUserMobile != null) {
+        // Load all data
+        final userProfile = await GetData.getUserProfile(_currentUserMobile!);
+        final allData = await GetData.getAllUserData(_currentUserMobile!);
+
+        setState(() {
+          _allData = allData;
+          _userProfile = userProfile;
+          _totalAmounts = {
+                            'owedToMe': userProfile['to_get'],
+                            'owedByMe': userProfile['to_pay'],
+                          };
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -155,9 +150,9 @@ class HomePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Mohammad Suhail",
-                        style: TextStyle(
+                      Text(
+                        _userProfile['full_name'] ?? "Unknown User",
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
@@ -174,7 +169,7 @@ class HomePage extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "₹ 200.00",
+                            GetData.formatAmount(_totalAmounts['owedToMe'] ?? 0.0),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -194,7 +189,7 @@ class HomePage extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "₹ 300.00",
+                            GetData.formatAmount(_totalAmounts['owedByMe'] ?? 0.0),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -247,26 +242,28 @@ class HomePage extends StatelessWidget {
           // Widgets list
           SizedBox(height: 5),
           Expanded(
-            child: DummyData.allData.isEmpty 
-                ? _buildEmptyState()
-                : ListView(
-                    children: [
-                      // Generate widgets from dummy data
-                      ...DummyData.allData.map((data) {
-                        if (data["type"] == 1) {
-                          return SplitByMeWidget(data: data);
-                        } else if (data["type"] == 0) {
-                          if(data["status"] == "Paid") {
-                            return PaidWidget(data: data);
-                          } else {
-                            return UnpaidWidget(data: data);
-                          }
-                        } 
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _allData.isEmpty 
+                    ? _buildEmptyState()
+                    : ListView(
+                        children: [
+                          // Generate widgets from real data
+                          ..._allData.map((data) {
+                            if (data["type"] == 1) {
+                              return SplitByMeWidget(data: data);
+                            } else if (data["type"] == 0) {
+                              if(data["status"] == "Paid") {
+                                return PaidWidget(data: data);
+                              } else {
+                                return UnpaidWidget(data: data);
+                              }
+                            } 
 
-                        return UnpaidWidget(data: data);
-                      }),
-                    ],
-                  ),
+                            return UnpaidWidget(data: data);
+                          }),
+                        ],
+                      ),
           ),
 
           // Bottom button
@@ -347,4 +344,6 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+
+
 }

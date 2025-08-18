@@ -533,16 +533,16 @@ class _OtpPageState extends State<OtpPage> {
   void _handleLoginSuccess() async {
     try {
       // Initialize local database and sync data
-      print(
-        'Initializing local database and syncing data for: ${widget.mobileNumber}',
-      );
+      print('Initializing local database and syncing data for: ${widget.mobileNumber}');
 
+      // Clear the database
+      await LocalDB.clearDatabase();
       // Initialize the local database
       final db = await LocalDB.database;
       print('Local database initialized');
 
       // Sync user data from Firebase
-      await LocalDB().syncUserData(widget.mobileNumber);
+      await LocalDB().syncUserData('+91${widget.mobileNumber}');
       print('User data synced from Firebase');
 
       if (mounted) {

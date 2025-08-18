@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_code_tools/qr_code_tools.dart';
 import 'user_service.dart';
+import 'logic/create_local_db.dart';
+import 'home_page.dart';
 
 class UserDetailsPage extends StatefulWidget {
   final String mobileNumber;
@@ -21,7 +23,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
   final FocusNode _upiIdFocusNode = FocusNode();
 
   Uint8List? _image;
-  void selectProfilePic() async{
+  void selectProfilePic() async {
     Uint8List img = await pickProfilePic(ImageSource.gallery);
     setState(() {
       _image = img;
@@ -164,11 +166,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                       fit: BoxFit.cover,
                     ),
                   )
-                : const Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Colors.grey,
-                  ),
+                : const Icon(Icons.person, size: 50, color: Colors.grey),
           ),
           Positioned(
             bottom: 0,
@@ -210,7 +208,6 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       ],
     );
   }
-  
 
   Widget _buildFloatingLabelInputField({
     required TextEditingController controller,
@@ -240,19 +237,14 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(
-            color: const Color(0xFF2196F3),
-            width: 2,
-          ),
+          border: Border.all(color: const Color(0xFF2196F3), width: 2),
           borderRadius: BorderRadius.circular(20),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Container(
-              height: 20,
-            ),
+            child: Container(height: 20),
           ),
         ),
       ),
@@ -269,10 +261,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
         borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 6,
-            vertical: 0,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
           child: Text(
             label,
             style: const TextStyle(
@@ -305,10 +294,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
           decoration: InputDecoration(
             hintText: hintText,
             border: InputBorder.none,
-            hintStyle: const TextStyle(
-              color: Colors.grey,
-              fontSize: 16,
-            ),
+            hintStyle: const TextStyle(color: Colors.grey, fontSize: 16),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 0,
               vertical: 8,
@@ -365,19 +351,14 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
-          border: Border.all(
-            color: const Color(0xFF2196F3),
-            width: 2,
-          ),
+          border: Border.all(color: const Color(0xFF2196F3), width: 2),
           borderRadius: BorderRadius.circular(20),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Container(
-              height: 20,
-            ),
+            child: Container(height: 20),
           ),
         ),
       ),
@@ -394,10 +375,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
         borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 6,
-            vertical: 0,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
           child: const Text(
             'Mobile Number',
             style: TextStyle(
@@ -412,25 +390,16 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
     );
   }
 
-Widget _buildCountryCodeSelector() {
+  Widget _buildCountryCodeSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
       child: Row(
         children: [
-          const Text(
-            '🇮🇳',
-            style: TextStyle(fontSize: 18),
-          ),
+          const Text('🇮🇳', style: TextStyle(fontSize: 18)),
           const SizedBox(width: 6),
           const Text(
             '+91',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           ),
           const SizedBox(width: 2),
         ],
@@ -439,11 +408,7 @@ Widget _buildCountryCodeSelector() {
   }
 
   Widget _buildSeparator() {
-    return Container(
-      width: 1,
-      height: 24,
-      color: Colors.grey.shade300,
-    );
+    return Container(width: 1, height: 24, color: Colors.grey.shade300);
   }
 
   Widget _buildMobileNumberDisplay() {
@@ -461,10 +426,7 @@ Widget _buildCountryCodeSelector() {
             Expanded(
               child: Text(
                 widget.mobileNumber,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                ),
+                style: const TextStyle(fontSize: 16, color: Colors.black),
               ),
             ),
           ],
@@ -481,19 +443,14 @@ Widget _buildCountryCodeSelector() {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(
-            color: const Color(0xFF2196F3),
-            width: 2,
-          ),
+          border: Border.all(color: const Color(0xFF2196F3), width: 2),
           borderRadius: BorderRadius.circular(20),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Container(
-              height: 20,
-            ),
+            child: Container(height: 20),
           ),
         ),
       ),
@@ -510,10 +467,7 @@ Widget _buildCountryCodeSelector() {
         borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 6,
-            vertical: 0,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
           child: const Text(
             'UPI ID',
             style: TextStyle(
@@ -544,15 +498,9 @@ Widget _buildCountryCodeSelector() {
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   hintText: 'Enter UPI ID (e.g., user@upi)',
-                  hintStyle: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
-                  ),
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                ),
+                style: const TextStyle(fontSize: 16, color: Colors.black),
               ),
             ),
             const SizedBox(width: 8),
@@ -599,10 +547,7 @@ Widget _buildCountryCodeSelector() {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text(
-                "Processing QR Code...",
-                style: TextStyle(fontSize: 16),
-              ),
+              Text("Processing QR Code...", style: TextStyle(fontSize: 16)),
             ],
           ),
         ),
@@ -648,7 +593,7 @@ Widget _buildCountryCodeSelector() {
     if (upiId.isNotEmpty) {
       setState(() => _upiIdController.text = upiId);
       _showSnack("UPI ID successfully extracted: $upiId", Colors.green);
-      
+
       // Show confirmation dialog
       showDialog(
         context: context,
@@ -658,7 +603,9 @@ Widget _buildCountryCodeSelector() {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("The following UPI ID was extracted from the QR code:"),
+              const Text(
+                "The following UPI ID was extracted from the QR code:",
+              ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -696,23 +643,26 @@ Widget _buildCountryCodeSelector() {
         ),
       );
     } else {
-      _showSnack("QR code detected but no UPI ID found. Please try another QR code.", Colors.orange);
+      _showSnack(
+        "QR code detected but no UPI ID found. Please try another QR code.",
+        Colors.orange,
+      );
     }
   }
 
   void _showSnack(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message), 
-        backgroundColor: color, 
-        duration: const Duration(seconds: 3)
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
   Widget _buildSubmitButton() {
-    bool isFormValid = _fullNameController.text.isNotEmpty && 
-                      _upiIdController.text.isNotEmpty;
+    bool isFormValid =
+        _fullNameController.text.isNotEmpty && _upiIdController.text.isNotEmpty;
 
     return SizedBox(
       width: double.infinity,
@@ -722,9 +672,7 @@ Widget _buildCountryCodeSelector() {
           backgroundColor: isFormValid
               ? const Color(0xFF2196F3)
               : Colors.grey.shade300,
-          foregroundColor: isFormValid
-              ? Colors.white
-              : Colors.grey.shade600,
+          foregroundColor: isFormValid ? Colors.white : Colors.grey.shade600,
           padding: const EdgeInsets.symmetric(vertical: 13),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -740,7 +688,7 @@ Widget _buildCountryCodeSelector() {
 
   final UserService userService = UserService();
 
-  void _handleSubmit() async{
+  void _handleSubmit() async {
     String fullName = _fullNameController.text.trim();
     String upiId = _upiIdController.text.trim();
 
@@ -752,7 +700,7 @@ Widget _buildCountryCodeSelector() {
     );
 
     String? profilePicUrl;
-    
+
     // Only upload if user selected an image
     if (_image != null) {
       profilePicUrl = await userService.uploadProfilePicture(_image!);
@@ -770,18 +718,62 @@ Widget _buildCountryCodeSelector() {
 
     Navigator.pop(context); // Close the loading dialog
 
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_image != null 
-          ? 'Account created successfully with profile picture!' 
-          : 'Account created successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    // Initialize local database and sync data
+    try {
+      print(
+        'Initializing local database and syncing data for: ${widget.mobileNumber}',
+      );
 
-    print('Account created successfully');
-    // TODO: Navigate to home/dashboard screen
+      // Initialize the local database
+      final db = await LocalDB.database;
+
+      // Sync user data from Firebase
+      await LocalDB().syncUserData(widget.mobileNumber);
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _image != null
+                ? 'Account created successfully! Data synced locally.'
+                : 'Account created successfully! Data synced locally.',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const HomePage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOut;
+            var tween = Tween(
+              begin: begin,
+              end: end,
+            ).chain(CurveTween(curve: curve));
+            var offsetAnimation = animation.drive(tween);
+            return SlideTransition(position: offsetAnimation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
+    } catch (e) {
+      print('Error syncing data: $e');
+      // Show success message even if sync fails
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _image != null
+                ? 'Account created successfully with profile picture!'
+                : 'Account created successfully!',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 }
-
