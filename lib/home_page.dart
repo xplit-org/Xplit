@@ -19,8 +19,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {
+  ImageProvider? _getProfileImageProvider(String? profilePicture) {    
     if (profilePicture == null || profilePicture.isEmpty) {
+      print('Profile picture is null or empty');
       return null;
     }
     
@@ -30,6 +31,7 @@ class _HomePageState extends State<HomePage> {
         // Extract base64 data from the data URL
         final base64Data = profilePicture.split(',')[1];
         final bytes = base64Decode(base64Data);
+        print('Successfully created MemoryImage from base64');
         return MemoryImage(bytes);
       } catch (e) {
         print('Error decoding base64 image: $e');
@@ -46,7 +48,6 @@ class _HomePageState extends State<HomePage> {
     if (profilePicture.startsWith('assets/')) {
       return AssetImage(profilePicture);
     }
-    
     return null;
   }
 
@@ -96,28 +97,16 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      // appBar: AppBar(
-      //   backgroundColor: Colors.white,
-      //   elevation: 0,
-      //   // title: const Text(
-      //   //   'Expenses',
-      //   //   style: TextStyle(
-      //   //     color: Colors.black87,
-      //   //     fontWeight: FontWeight.bold,
-      //   //   ),
-      //   // ),
-      //   actions: [
-      //     IconButton(
-      //       icon: Icon(Icons.list, color: Colors.green[600]),
-      //       onPressed: () {},
-      //     ),
-      //   ],
-      // ),
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
-
-      
+    return Scaffold(      
       body: Column(
         children: [
           // Header section
@@ -140,9 +129,15 @@ class _HomePageState extends State<HomePage> {
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const UserDashboard()));
                   },
-                  child: CircleAvatar(
-                    radius: 25,
-                    backgroundImage: AssetImage("assets/profilepic.png"),
+                  child: Builder(
+                    builder: (context) {
+                      final imageProvider = _getProfileImageProvider(_userProfile["profile_picture"]);
+                      return CircleAvatar(
+                        radius: 25,
+                        backgroundImage: imageProvider,
+                        child: imageProvider == null ? const Icon(Icons.person) : null,
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -203,10 +198,15 @@ class _HomePageState extends State<HomePage> {
                 ),
                 Padding(
                   padding: const EdgeInsets.only(left: 12.0, right: 12.0),
-                  child: Image.asset(
-                    "assets/billLogo.png",
-                    height: 40,
-                    width: 40,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ExpensesPage()));
+                    },
+                    child: Image.asset(
+                      "assets/billLogo.png",
+                      height: 40,
+                      width: 40,
+                    ),
                   ),
                 ),
               ],
