@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
-import 'dart:typed_data';
-import 'utils.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'dart:convert';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'logic/get_data.dart';
 
 
 class UserDashboard extends StatefulWidget {
@@ -15,33 +14,73 @@ class UserDashboard extends StatefulWidget {
 }
 
 class _UserDashboardState extends State<UserDashboard> {
-  Map<String, dynamic>? _userData;
+  // Helper function to create ImageProvider for profile pictures
+  ImageProvider? _getProfileImageProvider(String? profilePicture) {    
+    if (profilePicture == null || profilePicture.isEmpty) {
+      print('Profile picture is null or empty');
+      return null;
+    }
+    
+    // Check if it's a base64 image
+    if (profilePicture.startsWith('data:image/')) {
+      try {
+        // Extract base64 data from the data URL
+        final base64Data = profilePicture.split(',')[1];
+        final bytes = base64Decode(base64Data);
+        print('Successfully created MemoryImage from base64');
+        return MemoryImage(bytes);
+      } catch (e) {
+        print('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    
+    // Check if it's a network URL
+    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      return NetworkImage(profilePicture);
+    }
+    
+    // If it's a local asset path
+    if (profilePicture.startsWith('assets/')) {
+      return AssetImage(profilePicture);
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _userData = {};
   bool _isLoading = true;
-  Uint8List? _profileImage;
+  String? _currentUserMobile;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _loadData();
   }
 
-  Future<void> _loadUserData() async {
-    // Simulate loading delay
-    await Future.delayed(const Duration(milliseconds: 500));
+  Future<void> _loadData() async {
+    try {
+      // Get current user's mobile number
+      final user = FirebaseAuth.instance.currentUser;
+      _currentUserMobile = user?.phoneNumber;
+      if (_currentUserMobile != null) {
+        // Load all data
+        final userProfile = await GetData.getUserProfile(_currentUserMobile!);
 
-    // Use dummy data instead of Firebase
-    setState(() {
-      _userData = {
-        'full_name': 'John Doe',
-        'mobile_number': '9876543210',
-        'upi_id': 'johndoe@upi',
-        'profile_picture': 'default_profile',
-        'user_creation': DateTime.now(),
-      };
-      _isLoading = false;
-    });
-
-    print('Dummy user data loaded: ${_userData?['full_name']}');
+        setState(() {
+          _userData = userProfile;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   String formatPhoneNumber(String number) {
@@ -159,12 +198,50 @@ class _UserDashboardState extends State<UserDashboard> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      _copyToClipboard(shareLink);
+                      Clipboard.setData(ClipboardData(text: shareLink));
                       Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Link copied to clipboard!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
                     },
-                    icon: const Icon(Icons.copy, color: Colors.white, size: 24),
+                    icon: const Icon(Icons.copy, color: Colors.white),
                     label: const Text(
                       'Copy Link',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Share Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // Add share functionality here
+                    },
+                    icon: const Icon(Icons.share, color: Colors.white),
+                    label: const Text(
+                      'Share',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -177,7 +254,6 @@ class _UserDashboardState extends State<UserDashboard> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      elevation: 2,
                     ),
                   ),
                 ),
@@ -432,27 +508,89 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
+  void _logout() async {
+    // Show confirmation dialog
+    bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                'Logout',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    // If user confirms logout, proceed
+    if (shouldLogout == true) {
+      try {
+        await FirebaseAuth.instance.signOut();
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      } catch (e) {
+        print('Error logging out: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  // Header with Back Button
-                  _buildHeader(),
+        child: Stack(
+          children: [
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                    children: [
+                      // Header with Back Button
+                      _buildHeader(),
 
-                  // Profile Section
-                  _buildProfileSection(),
+                      // Profile Section
+                      _buildProfileSection(),
 
-                  const SizedBox(height: 40),
+                      const SizedBox(height: 40),
 
-                  // Friend Management Section
-                  _buildFriendManagementSection(),
-                ],
+                      // Friend Management Section
+                      _buildFriendManagementSection(),
+                    ],
+                  ),
+            
+            // Transparent Logout Button at Bottom Right
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: IconButton(
+                  onPressed: _logout,
+                  icon: const Icon(
+                    Icons.logout,
+                    color: Colors.black87,
+                    size: 24,
+                  ),
+                  tooltip: 'Logout',
+                ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -471,6 +609,13 @@ class _UserDashboardState extends State<UserDashboard> {
             'Profile',
             style: TextStyle(fontSize: 20, color: Colors.black87),
           ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.notifications, color: Colors.black87),
+            onPressed: () {
+              // TODO: Implement notification logic
+            },
+          ),
         ],
       ),
     );
@@ -487,16 +632,16 @@ class _UserDashboardState extends State<UserDashboard> {
             height: 100,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black,
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: ClipOval(
-              child: Image.asset('assets/profilepic.png', fit: BoxFit.cover),
+              child: Builder(
+                builder: (context) {
+                  final imageProvider = _getProfileImageProvider(_userData["profile_picture"]);
+                  return imageProvider != null
+                      ? Image(image: imageProvider, fit: BoxFit.cover)
+                      : Image.asset('assets/profilepic.png', fit: BoxFit.cover);
+                },
+              ),
             ),
           ),
 
@@ -622,6 +767,8 @@ class _UserDashboardState extends State<UserDashboard> {
               ),
             ),
           ),
+
+
         ],
       ),
     );

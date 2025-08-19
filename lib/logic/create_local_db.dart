@@ -28,6 +28,7 @@ class LocalDB {
           CREATE TABLE user (
             mobile_number TEXT PRIMARY KEY,
             full_name TEXT,
+            upi_id TEXT,
             profile_picture TEXT,
             user_creation TEXT,
             last_login TEXT,
@@ -107,6 +108,7 @@ class LocalDB {
           'mobile_number': mobileNumber,
           'full_name': userDoc['full_name'],
           'profile_picture': userDoc['profile_picture'],
+          'upi_id': userDoc['upi_id'],
           'user_creation': userCreation,
           'last_login': lastLogin,
           'to_get': userDoc['to_get'],

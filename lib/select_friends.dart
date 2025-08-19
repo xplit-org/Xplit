@@ -211,12 +211,3 @@ class Friend {
     this.share,
   });
 }
-
-class DummyData {
-  static List<Map<String, String>> preSelectedFriends = [
-    {'id': '1', 'name': 'John Doe', 'phone': '+91 9876543210'},
-    {'id': '3', 'name': 'Mike Johnson', 'phone': '+91 9876543212'},
-    {'id': '5', 'name': 'David Brown', 'phone': '+91 9876543214'},
-  ];
-}
-
