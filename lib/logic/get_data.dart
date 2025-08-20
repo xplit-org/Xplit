@@ -1,4 +1,7 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../constants/app_constants.dart';
 import 'create_local_db.dart';
 
 class GetData {
@@ -65,6 +68,14 @@ class GetData {
           double remainingAmount = 0.0;
 
           for (var split in splitDetails) {
+            print({
+              {
+                'mobile_no': split['mobile_no'],
+                'amount': split['amount'],
+                'status': split['status'],
+                'paid_time': split['paid_time'],
+              }
+            });
             if (split['status'] == 'paid') {
               paidCount++;
             } else {
@@ -139,8 +150,8 @@ class GetData {
       final db = await database;
       print("Mobile Number: $mobileNumber");
       final List<Map<String, dynamic>> results = await db.query(
-        'user',
-        where: 'mobile_number = ?',
+        AppConstants.TABLE_USER,
+        where: '${AppConstants.COL_MOBILE_NUMBER} = ?',
         whereArgs: [mobileNumber],
       );
 
@@ -216,8 +227,8 @@ class GetData {
       final db = await database;
       
       final List<Map<String, dynamic>> results = await db.query(
-        'friends_data',
-        where: 'mobile_number = ?',
+        AppConstants.TABLE_FRIENDS_DATA,
+        where: '${AppConstants.COL_MOBILE_NUMBER} = ?',
         whereArgs: [mobileNumber],
       );
 
@@ -228,6 +239,18 @@ class GetData {
     } catch (e) {
       print('Error getting friend data: $e');
       return null;
+    }
+  }
+
+  /// Get a list of all friends from the local database
+  static Future<List<Map<String, dynamic>>> getFriendsList() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> results = await db.query(AppConstants.TABLE_FRIENDS_DATA);
+      return results;
+    } catch (e) {
+      print('Error getting friends list: $e');
+      return [];
     }
   }
 }

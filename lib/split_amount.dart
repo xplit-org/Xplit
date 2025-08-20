@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'constants/app_constants.dart';
 import 'select_friends.dart';
 
 class SplitAmountPage extends StatefulWidget {
-  const SplitAmountPage({super.key});
+  final VoidCallback? onDataSaved; // Callback to notify parent when data is saved
+  
+  const SplitAmountPage({super.key, this.onDataSaved});
 
   @override
   State<SplitAmountPage> createState() => _SplitAmountPageState();
@@ -34,7 +37,10 @@ class _SplitAmountPageState extends State<SplitAmountPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SelectFriendsPage(amount: amount),
+        builder: (context) => SelectFriendsPage(
+          amount: amount,
+          onDataSaved: widget.onDataSaved,
+        ),
       ),
     );
   }
@@ -46,18 +52,16 @@ class _SplitAmountPageState extends State<SplitAmountPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Split Amount",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
+                  title: const Text(
+            AppConstants.SPLIT_AMOUNT_TITLE,
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
         centerTitle: true,
       ),
       body: SafeArea(
         child: Column(
           children: [
             const Spacer(),
-
-                         // Centered ₹ + amount
              Center(
                child: IntrinsicWidth(
                  child: TextField(
@@ -111,8 +115,8 @@ class _SplitAmountPageState extends State<SplitAmountPage> {
                     ),
                   ),
                   child: const Text(
-                    "Next",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    AppConstants.BUTTON_NEXT,
+                    style: TextStyle(fontSize: AppConstants.FONT_XLARGE, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'logic/get_data.dart';
+import 'constants/app_constants.dart';
 import 'split_on_friends.dart';
 
 class SelectFriendsPage extends StatefulWidget {
   final double amount;
+  final VoidCallback? onDataSaved; // Callback to notify parent when data is saved
   
-  const SelectFriendsPage({super.key, required this.amount});
+  const SelectFriendsPage({super.key, required this.amount, this.onDataSaved});
 
   @override
   State<SelectFriendsPage> createState() => _SelectFriendsPageState();
@@ -12,18 +19,106 @@ class SelectFriendsPage extends StatefulWidget {
 
 class _SelectFriendsPageState extends State<SelectFriendsPage> {
   List<Friend> selectedFriends = [];
+  List<Friend> allFriends = [];
+  bool _isLoading = true;
+
+    // Helper function to create ImageProvider for profile pictures
+  ImageProvider? _getProfileImageProvider(String? profilePicture) {    
+    if (profilePicture == null || profilePicture.isEmpty) {
+      print('Profile picture is null or empty');
+      return null;
+    }
+    
+    // Check if it's a base64 image
+    if (profilePicture.startsWith('data:image/')) {
+      try {
+        // Extract base64 data from the data URL
+        final base64Data = profilePicture.split(',')[1];
+        final bytes = base64Decode(base64Data);
+        print('Successfully created MemoryImage from base64');
+        return MemoryImage(bytes);
+      } catch (e) {
+        print('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    
+    // Check if it's a network URL
+    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      return NetworkImage(profilePicture);
+    }
+    
+    // If it's a local asset path
+    if (profilePicture.startsWith('assets/')) {
+      return AssetImage(profilePicture);
+    }
+    return null;
+  }
+
   
-  // Dummy friends data
-  final List<Friend> allFriends = [
-    Friend(id: '1', name: 'John Doe', phone: '+91 9876543210', isSelected: false),
-    Friend(id: '2', name: 'Jane Smith', phone: '+91 9876543211', isSelected: false),
-    Friend(id: '3', name: 'Mike Johnson', phone: '+91 9876543212', isSelected: false),
-    Friend(id: '4', name: 'Sarah Wilson', phone: '+91 9876543213', isSelected: false),
-    Friend(id: '5', name: 'David Brown', phone: '+91 9876543214', isSelected: false),
-    Friend(id: '6', name: 'Emily Davis', phone: '+91 9876543215', isSelected: false),
-    Friend(id: '7', name: 'Alex Turner', phone: '+91 9876543216', isSelected: false),
-    Friend(id: '8', name: 'Lisa Anderson', phone: '+91 9876543217', isSelected: false),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      
+      // Get current user's mobile number
+      final user = FirebaseAuth.instance.currentUser;
+      final currentUserMobile = user?.phoneNumber;
+      
+      // Load friends data
+      final List<Map<String, dynamic>> friendsData = await GetData.getFriendsList();
+      
+      // Convert database data to Friend objects
+      final List<Friend> friends = friendsData.map((friendData) {
+        return Friend(
+          id: friendData['mobile_number'] ?? '',
+          name: friendData['full_name'] ?? 'Unknown',
+          phone: friendData['mobile_number'] ?? '',
+          profilePicture: friendData['profile_picture'] ?? '',
+          isSelected: false,
+        );
+      }).toList();
+      
+      // Add current user to the list if not already present
+      if (currentUserMobile != null) {
+        final currentUserProfile = await GetData.getUserProfile(currentUserMobile);
+        if (currentUserProfile.isNotEmpty) {
+          final currentUserFriend = Friend(
+            id: currentUserProfile['mobile_number'] ?? '',
+            name: currentUserProfile['full_name'] ?? 'You',
+            phone: currentUserProfile['mobile_number'] ?? '',
+            profilePicture: currentUserProfile['profile_picture'] ?? '',
+            isSelected: false,
+          );
+          
+          // Check if current user is already in the list
+          final existingUserIndex = friends.indexWhere((friend) => friend.id == currentUserMobile);
+          if (existingUserIndex == -1) {
+            friends.add(currentUserFriend);
+          }
+        }
+      }
+      
+      setState(() {
+        allFriends = friends;
+        _isLoading = false;
+      });
+      
+      print('Loaded ${friends.length} friends');
+    } catch (e) {
+      print('Error loading data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   void _toggleFriendSelection(Friend friend) {
     setState(() {
@@ -53,6 +148,7 @@ class _SelectFriendsPageState extends State<SelectFriendsPage> {
         builder: (context) => SplitOnFriendsPage(
           amount: widget.amount,
           selectedFriends: selectedFriends,
+          onDataSaved: widget.onDataSaved,
         ),
       ),
     );
@@ -118,54 +214,82 @@ class _SelectFriendsPageState extends State<SelectFriendsPage> {
 
           // Friends list
           Expanded(
-            child: ListView.builder(
-              itemCount: allFriends.length,
-              itemBuilder: (context, index) {
-                final friend = allFriends[index];
-                return ListTile(
-                  leading: GestureDetector(
-                    onTap: () => _toggleFriendSelection(friend),
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: Colors.blue,
-                          child: Text(
-                            friend.name[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : allFriends.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text(
+                              'No friends found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Add friends to split expenses with them',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
                         ),
-                        if (friend.isSelected)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
-                              ),
-                              child: const Icon(
-                                Icons.check,
-                                color: Colors.white,
-                                size: 16,
+                      )
+                    : ListView.builder(
+                        itemCount: allFriends.length,
+                        itemBuilder: (context, index) {
+                          final friend = allFriends[index];
+                          return ListTile(
+                            leading: GestureDetector(
+                              onTap: () => _toggleFriendSelection(friend),
+                              child: Stack(
+                                children: [
+                                  Builder(
+                                    builder: (context) {
+                                      final imageProvider = _getProfileImageProvider(friend.profilePicture);
+                                      return CircleAvatar(
+                                        radius: 25,
+                                        backgroundImage: imageProvider,
+                                        child: imageProvider == null ? const Icon(Icons.person) : null,
+                                      );
+                                    },
+                                  ),
+                                  if (friend.isSelected)
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.green,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.white, width: 2),
+                                        ),
+                                        child: const Icon(
+                                          Icons.check,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  title: Text(
-                    friend.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(friend.phone),
-                  onTap: () => _toggleFriendSelection(friend),
-                );
-              },
-            ),
+                            title: Text(
+                              friend.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(friend.phone),
+                            onTap: () => _toggleFriendSelection(friend),
+                          );
+                        },
+                      ),
           ),
 
           // Next button
@@ -200,6 +324,7 @@ class Friend {
   final String id;
   final String name;
   final String phone;
+  final String profilePicture;
   bool isSelected;
   int? share;
 
@@ -207,6 +332,7 @@ class Friend {
     required this.id,
     required this.name,
     required this.phone,
+    required this.profilePicture,
     this.isSelected = false,
     this.share,
   });
