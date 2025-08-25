@@ -1,30 +1,72 @@
 import 'package:flutter/material.dart';
 import '../owed_to_me_expenses.dart';
+import 'dart:convert';
 
-class Data {
-  static final List<Map<String, dynamic>> allData = [
-    {"name": "Aatif Aftab", "requests": 1, "amount": 710},
-    {"name": "Mukhtar Khan", "requests": 2, "amount": 100},
-    {"name": "Zaid Ahmad", "requests": 5, "amount": 90},
-    {"name": "Faraz Khan", "requests": 2, "amount": 10},
+class OwedToMeWidget extends StatefulWidget {
+  final List<Map<String, dynamic>> data;
+  const OwedToMeWidget({Key? key, required this.data}) : super(key: key);
 
-    {"name": "Haris Mirza", "requests": 1, "amount": 9},
-  ];
+  @override
+  State<OwedToMeWidget> createState() => _OwedToMeWidgetState();
 }
 
-class OwedToMeWidget extends StatelessWidget {
-  const OwedToMeWidget({Key? key}) : super(key: key);
+class _OwedToMeWidgetState extends State<OwedToMeWidget> {
+  Map<int, ImageProvider?> _cachedImages = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _cacheAllImages();
+  }
+
+  void _cacheAllImages() {
+    for (int i = 0; i < widget.data.length; i++) {
+      _cachedImages[i] = _createImageProvider(widget.data[i]["profile_picture"]);
+    }
+  }
+
+  // Helper function to create ImageProvider for profile pictures
+  ImageProvider? _createImageProvider(String? profilePicture) {
+    if (profilePicture == null || profilePicture.isEmpty) {
+      return null;
+    }
+    
+    // Check if it's a base64 image
+    if (profilePicture.startsWith('data:image/')) {
+      try {
+        // Extract base64 data from the data URL
+        final base64Data = profilePicture.split(',')[1];
+        final bytes = base64Decode(base64Data);
+        return MemoryImage(bytes);
+      } catch (e) {
+        print('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    
+    // Check if it's a network URL
+    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      return NetworkImage(profilePicture);
+    }
+    
+    // If it's a local asset path
+    if (profilePicture.startsWith('assets/')) {
+      return AssetImage(profilePicture);
+    }
+    
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     // Check if there are any expenses
-    if (Data.allData.isEmpty) {
+    if (widget.data.isEmpty) {
       return _buildEmptyState();
     }
     
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
-      itemCount: Data.allData.length,
+      itemCount: widget.data.length,
       itemBuilder: (context, index) {
         return GestureDetector(
           onTap: () {
@@ -32,9 +74,11 @@ class OwedToMeWidget extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => OwedToMeExpensesPage(
-                  userName: Data.allData[index]["name"],
-                  totalAmount: Data.allData[index]["amount"],
-                  requestCount: Data.allData[index]["requests"],
+                  userName: widget.data[index]["full_name"] ?? "Unknown",
+                  totalAmount: (widget.data[index]["total_amount"] ?? 0).toInt(),
+                  requestCount: widget.data[index]["total_request"] ?? 0,
+                  profilePicture: widget.data[index]["profile_picture"] ?? "assets/image 5.png",
+                  requests: widget.data[index]["request"],
                 ),
               ),
             );
@@ -53,8 +97,19 @@ class OwedToMeWidget extends StatelessWidget {
                 children: [
                   // Profile Avatar
                   CircleAvatar(
-                    radius: 20,
-                    backgroundImage: const AssetImage("assets/profilepic.png"),
+                    radius: 25,
+                    backgroundImage: _cachedImages[index],
+                    backgroundColor: Colors.lightBlue,
+                    child: _cachedImages[index] == null
+                        ? Text(
+                            (widget.data[index]["full_name"] ?? "Unknown").split(' ').map((e) => e.isNotEmpty ? e[0] : '').join(''),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 16),
 
@@ -64,7 +119,7 @@ class OwedToMeWidget extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          Data.allData[index]["name"],
+                          widget.data[index]["full_name"] ?? "Unknown",
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -72,7 +127,7 @@ class OwedToMeWidget extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${Data.allData[index]["requests"]} request${Data.allData[index]["requests"] == 1 ? '' : 's'} pending',
+                          '${widget.data[index]["total_request"] ?? 0} request${(widget.data[index]["total_request"] ?? 0) == 1 ? '' : 's'} pending',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -81,13 +136,12 @@ class OwedToMeWidget extends StatelessWidget {
                       ],
                     ),
                   ),
-
                   // Amount
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '₹${Data.allData[index]["amount"]}',
+                        '₹${widget.data[index]["total_amount"] ?? 0}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,

@@ -68,14 +68,14 @@ class GetData {
           double remainingAmount = 0.0;
 
           for (var split in splitDetails) {
-            print({
-              {
-                'mobile_no': split['mobile_no'],
-                'amount': split['amount'],
-                'status': split['status'],
-                'paid_time': split['paid_time'],
-              }
-            });
+            // print({
+            //   {
+            //     'mobile_no': split['mobile_no'],
+            //     'amount': split['amount'],
+            //     'status': split['status'],
+            //     'paid_time': split['paid_time'],
+            //   }
+            // });
             if (split['status'] == 'paid') {
               paidCount++;
             } else {
@@ -148,7 +148,6 @@ class GetData {
   static Future<Map<String, dynamic>> getUserProfile(String mobileNumber) async {
     try {
       final db = await database;
-      print("Mobile Number: $mobileNumber");
       final List<Map<String, dynamic>> results = await db.query(
         AppConstants.TABLE_USER,
         where: '${AppConstants.COL_MOBILE_NUMBER} = ?',
@@ -195,7 +194,6 @@ class GetData {
       String timeStr = '';
       int hour = dateTime.hour;
       int minute = dateTime.minute;
-      String period = hour >= 12 ? 'pm' : 'am';
       
       if (hour == 0) {
         timeStr = '12.${minute.toString().padLeft(2, '0')} am';
@@ -204,7 +202,7 @@ class GetData {
       } else if (hour > 12) {
         timeStr = '${hour - 12}.${minute.toString().padLeft(2, '0')} pm';
       } else {
-        timeStr = '${hour}.${minute.toString().padLeft(2, '0')} am';
+        timeStr = '$hour.${minute.toString().padLeft(2, '0')} am';
       }
       
       // Format date (DD/MM/YY)
@@ -252,5 +250,223 @@ class GetData {
       print('Error getting friends list: $e');
       return [];
     }
+  }
+
+  /// Get total expenses
+  static Future<Map<String, dynamic>> getTotalExpense() async {
+    try {
+      final db = await database;
+      
+      final List<Map<String, dynamic>> owedToMe = await db.rawQuery('''
+        SELECT s.*, u.${AppConstants.COL_SPLIT_TIME}, totals.total_amount
+        FROM ${AppConstants.TABLE_SPLIT_ON} s
+        JOIN ${AppConstants.TABLE_USER_DATA} u
+          ON s.${AppConstants.COL_USER_DATA_ID} = u.${AppConstants.COL_ID}
+        JOIN (
+          SELECT ${AppConstants.COL_MOBILE_NO},
+          SUM(${AppConstants.COL_AMOUNT}) as total_amount
+          FROM ${AppConstants.TABLE_SPLIT_ON}
+          WHERE ${AppConstants.COL_STATUS} = '${AppConstants.STATUS_UNPAID}'
+          GROUP BY ${AppConstants.COL_MOBILE_NO}
+        ) 
+        totals 
+          ON s.${AppConstants.COL_MOBILE_NO} = totals.${AppConstants.COL_MOBILE_NO}
+        WHERE s.${AppConstants.COL_STATUS} = '${AppConstants.STATUS_UNPAID}'
+        ORDER BY s.${AppConstants.COL_MOBILE_NO} ASC,
+        u.${AppConstants.COL_SPLIT_TIME} ASC
+      ''');
+
+      if (owedToMe.isNotEmpty) {
+        for (var result in owedToMe) {
+          print("split_on_data\n");
+          print({ 
+                    'id': result['id'],
+                    'user_data_id': result['user_data_id'],
+                    'mobile_no': result['mobile_no'],
+                    'amount': result['amount'],
+                    'status': result['status'],
+                    'paid_time': result['paid_time'],
+                    'total_amount': result['total_amount'],
+                    'split_time': result['split_time'],
+          });
+        }
+      }
+
+      final List<Map<String, dynamic>> owedByMe = await db.rawQuery('''
+        SELECT u.*, totals.total_amount 
+        FROM ${AppConstants.TABLE_USER_DATA} u
+        JOIN (
+          SELECT ${AppConstants.COL_SPLIT_BY},
+          SUM(${AppConstants.COL_AMOUNT}) as total_amount
+          FROM ${AppConstants.TABLE_USER_DATA}
+          WHERE ${AppConstants.COL_STATUS} = '${AppConstants.STATUS_UNPAID}'
+          GROUP BY ${AppConstants.COL_SPLIT_BY}
+        ) 
+        totals ON u.${AppConstants.COL_SPLIT_BY} = totals.${AppConstants.COL_SPLIT_BY}
+        WHERE u.${AppConstants.COL_STATUS} = '${AppConstants.STATUS_UNPAID}'
+        ORDER BY u.${AppConstants.COL_SPLIT_BY} ASC,
+        u.${AppConstants.COL_SPLIT_TIME} ASC
+      ''');
+
+      if (owedByMe.isNotEmpty) {
+        for (var result in owedByMe) {
+          print("user_data\n");
+          print({ 
+                    'id': result['id'],
+                    'type': result['type'],
+                    'amount': result['amount'],
+                    'split_by': result['split_by'],
+                    'split_time': result['split_time'],
+                    'status': result['status'],
+                    'paid_time': result['paid_time'],
+                    'total_amount': result['total_amount'],
+          });
+        }
+      }
+
+      Map<String, Map<String, dynamic>> totalAdjustedExpenses = {};
+      String key = '';
+      Map<String, dynamic> request = {};
+      // type=0 for OwedByMe and type=1 for OwedToMe
+      void putRequest(int type, int index){
+        if(type == 1){
+          key = owedToMe[index][AppConstants.COL_MOBILE_NO];
+          totalAdjustedExpenses[key]!['total_amount'] += owedToMe[index][AppConstants.COL_AMOUNT];
+          totalAdjustedExpenses[key]!['total_request'] += 1;
+          request = {
+            'type': 'type_1',
+            'user_data_id': owedToMe[index][AppConstants.COL_USER_DATA_ID],
+            'amount': owedToMe[index][AppConstants.COL_AMOUNT],
+            'split_time': owedToMe[index][AppConstants.COL_SPLIT_TIME],
+            'requested_by': 'Me',
+          };
+          totalAdjustedExpenses[key]!['request'].add(request);
+        }
+        else if(type == 0){
+          key = owedByMe[index][AppConstants.COL_SPLIT_BY];
+          totalAdjustedExpenses[key]!['total_amount'] -= owedByMe[index][AppConstants.COL_AMOUNT];
+          totalAdjustedExpenses[key]!['total_request'] += 1;
+          request = {
+            'type': 'type_0',
+            'user_data_id': owedByMe[index][AppConstants.COL_ID],
+            'amount': owedByMe[index][AppConstants.COL_AMOUNT],
+            'split_time': owedByMe[index][AppConstants.COL_SPLIT_TIME],
+            'requested_by': totalAdjustedExpenses[key]!['full_name'],
+          };
+          totalAdjustedExpenses[key]!['request'].add(request);
+        }
+      }
+      Future<void> initKey (int type, int index) async{
+        if(type == 1){
+          key = owedToMe[index][AppConstants.COL_MOBILE_NO];
+        }
+        else if(type == 0){
+          key = owedByMe[index][AppConstants.COL_SPLIT_BY];
+        }
+        final friendData = await getFriendByMobile(key);
+        List<Map<String, dynamic>> request = [];
+        // collect other data for this mobile number
+        totalAdjustedExpenses[key] = {
+          'full_name': friendData?['full_name'] ?? 'Unknown',
+          'profile_picture': friendData?['profile_picture'] ?? 'assets/image 5.png',
+          'total_amount': 0,
+          'total_request': 0,
+          'request': request,
+        };
+      }
+
+      // Merge the two lists to create the final data
+      // Using 2 pointer method
+      int i = 0; // index for owedToMe
+      int j = 0; // index for owedByMe
+      while (i < owedToMe.length && j < owedByMe.length) {
+        // Both request for same friend
+        if(owedToMe[i][AppConstants.COL_MOBILE_NO] == owedByMe[j][AppConstants.COL_SPLIT_BY]) {          
+          // Put the request for older time first
+          if(isTimeBefore(owedToMe[i][AppConstants.COL_SPLIT_TIME], owedByMe[j][AppConstants.COL_SPLIT_TIME])) {
+            key = owedToMe[i][AppConstants.COL_MOBILE_NO];
+            // Check if friend had a record in totalAdjustedExpenses
+            if(!totalAdjustedExpenses.containsKey(key)) {
+              await initKey(1, i);
+            }
+            putRequest(1, i);   
+            i++;
+          }
+          else {
+            key = owedByMe[j][AppConstants.COL_SPLIT_BY];
+            // Check if friend had a record in totalAdjustedExpenses
+            if(!totalAdjustedExpenses.containsKey(key)) {
+              await initKey(0, j);
+            }
+            putRequest(0, j);
+            j++;
+          }
+        // Both request for different friend
+        } else if (owedToMe[i][AppConstants.COL_MOBILE_NO] < owedByMe[j][AppConstants.COL_SPLIT_BY]) {
+          key = owedToMe[i][AppConstants.COL_MOBILE_NO];
+          // Check if friend had a record in totalAdjustedExpenses
+          // Put the request for ith
+          if(totalAdjustedExpenses.containsKey(key)){
+            putRequest(1, i);
+          // Don't have record, create a new record and put ith request
+          }else {
+            await initKey(1, i);
+            putRequest(1, i);
+          }
+          i++;
+        // Both request for different friend
+        }else{
+          key = owedByMe[j][AppConstants.COL_SPLIT_BY];
+          // Check if friend had a record in totalAdjustedExpenses
+          // Put the request for jth
+          if(totalAdjustedExpenses.containsKey(key)){
+            putRequest(0, j);
+          // Don't have record, create a new record and put jth request
+          }else {
+            await initKey(0, j);
+            putRequest(0, j);
+          }
+          j++;
+        }
+      }
+      // put remaining data
+      while (i < owedToMe.length){
+        key = owedToMe[i][AppConstants.COL_MOBILE_NO];
+        // Check if friend had a record in totalAdjustedExpenses
+        // Put the request for ith
+        if(totalAdjustedExpenses.containsKey(key)){
+          putRequest(1, i);
+        // Don't have record, create a new record and put ith request
+        }else {
+          await initKey(1, i);
+          putRequest(1, i);
+        }
+        i++;
+      }
+      while (j < owedByMe.length){
+        key = owedByMe[j][AppConstants.COL_SPLIT_BY];
+        // Check if friend had a record in totalAdjustedExpenses
+        // Put the request for jth
+        if(totalAdjustedExpenses.containsKey(key)){
+          putRequest(0, j);
+        // Don't have record, create a new record and put jth request
+        }else {
+          await initKey(0, j);
+          putRequest(0, j);
+        }
+        j++;
+      }
+
+      return totalAdjustedExpenses;
+    } catch (e) {
+      print('Error Total Adjusted data: $e');
+      return {};
+    }
+  }
+
+  static bool isTimeBefore(String time1, String time2) {
+    final DateTime dateTime1 = DateTime.parse(time1);
+    final DateTime dateTime2 = DateTime.parse(time2);
+    return dateTime1.isBefore(dateTime2);
   }
 }

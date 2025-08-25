@@ -235,7 +235,7 @@ class _OwedByMeExpensesPageState extends State<OwedByMeExpensesPage> {
           // Profile picture
           CircleAvatar(
             radius: 20,
-            backgroundImage: const AssetImage("assets/profilepic.png"),
+            backgroundImage: const AssetImage("assets/image 5.png"),
           ),
           const SizedBox(width: 12),
           

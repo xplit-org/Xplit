@@ -94,7 +94,7 @@ class AppConstants {
   
   // Asset paths
   static const String ASSET_BILL_LOGO = 'assets/billLogo.png';
-  static const String ASSET_PROFILE_PIC = 'assets/profilepic.png';
+  static const String ASSET_PROFILE_PIC = 'assets/image 5.png';
   static const String ASSET_NULL_IMAGE = 'assets/null.jpg';
   static const String ASSET_IMAGE_5 = 'assets/image 5.png';
   

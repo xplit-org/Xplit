@@ -1,9 +1,53 @@
 import 'package:flutter/material.dart';
 import 'widgets/owed_by_me_widget.dart';
 import 'widgets/owed_to_me_widget.dart';
+import 'logic/get_data.dart';
 
-class ExpensesPage extends StatelessWidget {
+class ExpensesPage extends StatefulWidget {
   const ExpensesPage({super.key});
+
+  @override
+  State<ExpensesPage> createState() => _ExpensesPageState();
+}
+
+class _ExpensesPageState extends State<ExpensesPage> {
+  Future<Map<String, dynamic>> _futureTotalAdjustedExpenses = Future.value({});
+  Map<String, dynamic> totalAmount = {
+    'owed_to_me': 0,
+    'owed_by_me': 0,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    // Load the totalAdjustedExpenses data when the page is initialized
+    _futureTotalAdjustedExpenses = GetData.getTotalExpense();
+
+  }
+
+  // Helper to pass data to widgets
+  Widget _buildTabViews(Map<String, dynamic> totalAdjustedExpenses) {
+    // Split the data for owed to me and owed by me
+    //   - If total_amount > 0, it's "Owed to me"
+    //   - If total_amount < 0, it's "Owed by me"
+    final owedToMeList = totalAdjustedExpenses.entries
+        .where((e) => (e.value['total_amount'] ?? 0) > 0)
+        .map((e) => e.value as Map<String, dynamic>)
+        .toList();
+    final owedByMeList = totalAdjustedExpenses.entries
+        .where((e) => (e.value['total_amount'] ?? 0) < 0)
+        .map((e) => e.value as Map<String, dynamic>)
+        .toList();
+
+    return Expanded(
+      child: TabBarView(
+        children: [
+          OwedToMeWidget(data: owedToMeList),
+          OwedByMeWidget(data: owedByMeList),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +66,7 @@ class ExpensesPage extends StatelessWidget {
         length: 2,
         child: Column(
           children: [
-            const TabBar(
+            TabBar(
               labelColor: Colors.black,
               unselectedLabelColor: Colors.black,
               indicatorColor: Color(0xFF29B6F6),
@@ -33,7 +77,7 @@ class ExpensesPage extends StatelessWidget {
                     children: [
                       Text("Owed to me"),
                       Text(
-                        "₹ 200.00",
+                        "₹ ${totalAmount['owed_to_me']}",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -48,7 +92,7 @@ class ExpensesPage extends StatelessWidget {
                     children: [
                       Text("Owed by me"),
                       Text(
-                        "₹ 500.00",
+                        "₹ ${totalAmount['owed_by_me']}",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -60,10 +104,44 @@ class ExpensesPage extends StatelessWidget {
                 ),
               ],
             ),
-            Expanded(
-              child: const TabBarView(
-                children: [OwedToMeWidget(), OwedByMeWidget()],
-              ),
+            FutureBuilder<Map<String, dynamic>>(
+              future: _futureTotalAdjustedExpenses,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Expanded(
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                } else if (snapshot.hasError) {
+                  return Expanded(
+                    child: Center(child: Text('Error: ${snapshot.error}')),
+                  );
+                } else if (snapshot.hasData) {
+                  // Calculate totals and update state
+                  final data = snapshot.data!;
+                  final owedToMeList = data.entries
+                      .where((e) => (e.value['total_amount'] ?? 0) > 0)
+                      .map((e) => e.value as Map<String, dynamic>)
+                      .toList();
+                  final owedByMeList = data.entries
+                      .where((e) => (e.value['total_amount'] ?? 0) < 0)
+                      .map((e) => e.value as Map<String, dynamic>)
+                      .toList();
+                  
+                  totalAmount['owed_to_me'] = owedToMeList.fold(0.0, (sum, item) => sum + (item['total_amount'] ?? 0)).toInt();
+                  totalAmount['owed_by_me'] = owedByMeList.fold(0.0, (sum, item) => sum + (item['total_amount'] ?? 0)).toInt();
+                  
+                  // Force rebuild to update TabBar
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() {});
+                  });
+                  
+                  return _buildTabViews(data);
+                } else {
+                  return const Expanded(
+                    child: Center(child: Text('No data available')),
+                  );
+                }
+              },
             ),
           ],
         ),
