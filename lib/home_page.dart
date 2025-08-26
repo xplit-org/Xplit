@@ -9,6 +9,7 @@ import 'widgets/splitByMeWidget.dart';
 import 'expenses.dart';
 import 'user_dashboard.dart';
 import 'constants/app_constants.dart';
+import 'friend_request_notification_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -261,6 +262,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
+                IconButton(
+                  icon: const Icon(Icons.notification_add_outlined),
+                  tooltip: 'Test friend request notification',
+                  onPressed: () async {
+                    await FriendRequestNotificationService().showFriendRequestNotification(
+                      name: 'Test User',
+                      mobile: '+910000000000',
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -327,14 +338,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             padding: const EdgeInsets.fromLTRB(12, 6 , 12, 16),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey,
-                  spreadRadius: 2,
-                  blurRadius: 5,
-                  offset: Offset(0, 2),
-                ),
-              ],
+              
             ),
             child: SizedBox(
               width: double.infinity,

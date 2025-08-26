@@ -108,7 +108,7 @@ class _OtpPageState extends State<OtpPage> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black,
             blurRadius: 20,
             offset: const Offset(0, -8),
             spreadRadius: 2,
@@ -212,7 +212,6 @@ class _OtpPageState extends State<OtpPage> {
                     ),
                   ),
                 ),
-                // Bottom border only
                 Container(
                   height: 2,
                   decoration: BoxDecoration(
@@ -224,36 +223,80 @@ class _OtpPageState extends State<OtpPage> {
               ],
             ),
           ),
-          // Transparent text field for input
+
+          // Input field
           Positioned.fill(
-            child: TextField(
-              controller: _otpControllers[index],
-              focusNode: _otpFocusNodes[index],
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(1),
-              ],
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.transparent,
-              ),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              onChanged: (value) {
-                setState(() {
-                  // Trigger rebuild to update the displayed digit
-                });
-                if (value.isNotEmpty && index < 5) {
-                  _otpFocusNodes[index + 1].requestFocus();
-                } else if (value.isEmpty && index > 0) {
-                  _otpFocusNodes[index - 1].requestFocus();
+            child: KeyboardListener(
+              focusNode: FocusNode(),
+              onKeyEvent: (event) {
+                if (event is KeyDownEvent &&
+                    event.logicalKey == LogicalKeyboardKey.backspace) {
+                  setState(() {
+                    // <--- Add this
+                    // If current box has a value, clear it and move focus back
+                    if (_otpControllers[index].text.isNotEmpty) {
+                      _otpControllers[index].clear();
+
+                      // Move focus to previous box if it exists
+                      if (index > 0) {
+                        _otpFocusNodes[index - 1].requestFocus();
+                      }
+                    }
+                    // If current box is already empty, move focus back and clear previous box
+                    else if (index > 0) {
+                      _otpFocusNodes[index - 1].requestFocus();
+                      _otpControllers[index - 1].clear();
+                    }
+                  });
                 }
               },
+
+              child: TextField(
+                controller: _otpControllers[index],
+                focusNode: _otpFocusNodes[index],
+                textAlign: TextAlign.center,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.transparent,
+                ),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onChanged: (value) {
+                  if (value.isEmpty) {
+                    setState(() {}); // just refresh UI
+                    return;
+                  }
+
+                  // ✅ Case 1: Paste multiple digits
+                  if (value.length > 1) {
+                    for (int i = 0; i < value.length; i++) {
+                      if (index + i < _otpControllers.length) {
+                        _otpControllers[index + i].text = value[i];
+                      }
+                    }
+                    int nextIndex = (index + value.length).clamp(
+                      0,
+                      _otpControllers.length - 1,
+                    );
+                    _otpFocusNodes[nextIndex].requestFocus();
+                  } else {
+                    // ✅ Case 2: Single digit typed
+                    if (_otpControllers[index].text.isEmpty) {
+                      // If empty → put digit here
+                      _otpControllers[index].text = value;
+                    } else if (index < _otpControllers.length - 1) {
+                      _otpFocusNodes[index + 1].requestFocus();
+                    }
+                  }
+
+                  setState(() {});
+                },
+              ),
             ),
           ),
         ],
@@ -533,7 +576,9 @@ class _OtpPageState extends State<OtpPage> {
   void _handleLoginSuccess() async {
     try {
       // Initialize local database and sync data
-      print('Initializing local database and syncing data for: ${widget.mobileNumber}');
+      print(
+        'Initializing local database and syncing data for: ${widget.mobileNumber}',
+      );
 
       // Clear the database
       await LocalDB.clearDatabase();
