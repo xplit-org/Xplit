@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:sqflite/sqflite.dart';
 import 'logic/create_local_db.dart';
 import 'logic/get_data.dart';
 
@@ -22,14 +21,14 @@ class FirebaseSyncService {
           .get();
 
       if (doc.exists) {
-        print('✅ User exists in Firebase: $mobileNumber');
+        print('User exists in Firebase: $mobileNumber');
         return true;
       } else {
-        print('❌ User does not exist in Firebase: $mobileNumber');
+        print('User does not exist in Firebase: $mobileNumber');
         return false;
       }
     } catch (e) {
-      print('❌ Error checking user existence in Firebase: $e');
+      print('Error checking user existence in Firebase: $e');
       return false;
     }
   }

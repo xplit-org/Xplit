@@ -1,6 +1,4 @@
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_constants.dart';
 import 'create_local_db.dart';
 
@@ -255,7 +253,6 @@ class GetData {
     }
   }
 
-
   /// Get a list of all friends from the local database
   static Future<List<Map<String, dynamic>>> getFriendsList() async {
     try {
@@ -476,6 +473,9 @@ class GetData {
       return totalAdjustedExpenses;
     } catch (e) {
       print('Error Total Adjusted data: $e');
+      return {};
+    }
+  }
 
   static Future<List<String>> getRequestedMobile(String mobileNumber) async {
     try {
@@ -521,11 +521,11 @@ class GetData {
     }
   }
 
-
   static bool isTimeBefore(String time1, String time2) {
     final DateTime dateTime1 = DateTime.parse(time1);
     final DateTime dateTime2 = DateTime.parse(time2);
     return dateTime1.isBefore(dateTime2);
+  }
 
   /// Get all pending friend requests for the current user (from local DB)
   static Future<List<Map<String, dynamic>>> getPendingFriendRequests() async {
