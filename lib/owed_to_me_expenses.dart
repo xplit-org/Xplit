@@ -1,103 +1,133 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'logic/get_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class OwedToMeExpensesPage extends StatefulWidget {
   final String userName;
   final int totalAmount;
   final int requestCount;
+  final String profilePicture;
+  final List<Map<String, dynamic>> requests;
 
   const OwedToMeExpensesPage({
     Key? key,
     required this.userName,
     required this.totalAmount,
     required this.requestCount,
+    required this.profilePicture,
+    required this.requests,
   }) : super(key: key);
 
   @override
   State<OwedToMeExpensesPage> createState() => _OwedToMeExpensesPageState();
-}
+  }
 
 class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
-  String selectedFilter = 'Unpaid';
+  String? currentUserName;
+  String? currentUserProfilePic;
+  ImageProvider? _cachedProfileImage;
+  ImageProvider? _cachedCurrentUserImage;
 
-  // Sample data for individual expense requests
-  List<Map<String, dynamic>> getExpenseRequests() {
-    // This would typically come from a database or API
-    // For now, using sample data based on the user
-    if (widget.userName == "Aatif Aftab") {
-      return [
-        {
-          "date": "28 May",
-          "amount": 160.0,
-          "description": "Lunch",
-        },
-        {
-          "date": "28 May", 
-          "amount": 500.0,
-          "description": "Dinner",
-        },
-        {
-          "date": "15 May",
-          "amount": 15.0,
-          "description": "Coffee",
-        },
-        {
-          "date": "14 May",
-          "amount": 35.0,
-          "description": "Snacks",
-        },
-        
-      ];
-    } else if (widget.userName == "Mukhtar Khan") {
-      return [
-        {
-          "date": "27 May",
-          "amount": 60.0,
-          "description": "Movie tickets",
-        },
-        {
-          "date": "26 May",
-          "amount": 40.0,
-          "description": "Transport",
-        },
-      ];
-    } else if (widget.userName == "Zaid Ahmad") {
-      return [
-        {
-          "date": "25 May",
-          "amount": 20.0,
-          "description": "Breakfast",
-        },
-        {
-          "date": "24 May",
-          "amount": 15.0,
-          "description": "Lunch",
-        },
-        {
-          "date": "23 May",
-          "amount": 25.0,
-          "description": "Dinner",
-        },
-        {
-          "date": "22 May",
-          "amount": 20.0,
-          "description": "Coffee",
-        },
-        {
-          "date": "21 May",
-          "amount": 10.0,
-          "description": "Snacks",
-        },
-      ];
-    } else {
-      // Default data for other users
-      return [
-        {
-          "date": "Today",
-          "amount": widget.totalAmount.toDouble(),
-          "description": "Expense",
-        },
-      ];
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUserDetails();
+    _cacheProfileImages();
+  }
+
+  Future<void> _loadCurrentUserDetails() async {
+    try {
+      String currentUserMobileNumber = FirebaseAuth.instance.currentUser?.phoneNumber ?? "";
+      
+      final userDetails = await GetData.getUserDetails(currentUserMobileNumber);
+      setState(() {
+        currentUserName = userDetails['full_name'] ?? 'Unknown';
+        currentUserProfilePic = userDetails['profile_picture'] ?? 'assets/image 5.png';
+      });
+      _cacheCurrentUserImage();
+    } catch (e) {
+      print('Error loading current user details: $e');
+      setState(() {
+        currentUserName = 'Unknown';
+        currentUserProfilePic = 'assets/image 5.png';
+      });
     }
+  }
+
+  void _cacheProfileImages() {
+    _cachedProfileImage = _createImageProvider(widget.profilePicture);
+  }
+
+  void _cacheCurrentUserImage() {
+    if (currentUserProfilePic != null) {
+      _cachedCurrentUserImage = _createImageProvider(currentUserProfilePic!);
+      setState(() {}); // Trigger rebuild to show the cached image
+    }
+  }
+
+  // Helper function to create ImageProvider for profile pictures
+  ImageProvider? _createImageProvider(String? profilePicture) {
+    if (profilePicture == null || profilePicture.isEmpty) {
+      return null;
+    }
+    
+    // Check if it's a base64 image
+    if (profilePicture.startsWith('data:image/')) {
+      try {
+        // Extract base64 data from the data URL
+        final base64Data = profilePicture.split(',')[1];
+        final bytes = base64Decode(base64Data);
+        return MemoryImage(bytes);
+      } catch (e) {
+        print('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    
+    // Check if it's a network URL
+    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      return NetworkImage(profilePicture);
+    }
+    
+    // If it's a local asset path
+    if (profilePicture.startsWith('assets/')) {
+      return AssetImage(profilePicture);
+    }
+    
+    return null;
+  }
+
+  // Convert the requests data to the format expected by the UI
+  List<Map<String, dynamic>> getExpenseRequests() {
+    return widget.requests.map((request) {
+      // Parse the split_time to get a formatted date
+      String date = "Unknown";
+      try {
+        if (request['split_time'] != null) {
+          final DateTime dateTime = DateTime.parse(request['split_time']);
+          date = "${dateTime.day} ${_getMonthName(dateTime.month)}";
+        }
+      } catch (e) {
+        print('Error parsing date: $e');
+      }
+      
+      return {
+        "date": date,
+        "amount": request['amount'] ?? 0.0,
+        "description": request['requested_by'] ?? "Unknown",
+        "type": request['type'] ?? "unknown",
+        "user_data_id": request['user_data_id'] ?? "",
+      };
+    }).toList();
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
   }
 
   @override
@@ -129,15 +159,18 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
                 // User avatar
                 CircleAvatar(
                   radius: 40,
+                  backgroundImage: _cachedProfileImage,
                   backgroundColor: Colors.lightBlue,
-                  child: Text(
-                    widget.userName.split(' ').map((e) => e[0]).join(''),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _cachedProfileImage == null
+                      ? Text(
+                          widget.userName.split(' ').map((e) => e[0]).join(''),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 
@@ -204,9 +237,37 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
       child: Row(
         children: [
           // Profile picture
-          CircleAvatar(
-            radius: 20,
-            backgroundImage: const AssetImage("assets/profilepic.png"),
+          Builder(
+            builder: (context) {
+              ImageProvider? avatarImageProvider;
+              String avatarName;
+
+              if (request["type"] == "type_0") {
+                // Use current user's profile picture and name
+                avatarImageProvider = _cachedProfileImage;
+                avatarName = widget.userName;
+              } else {
+                // Use the request's profile picture and name if available
+                avatarImageProvider = _cachedCurrentUserImage;
+                avatarName = currentUserName ?? "";
+              }
+
+              return CircleAvatar(
+                radius: 20,
+                backgroundImage: avatarImageProvider,
+                backgroundColor: Colors.lightBlue,
+                child: avatarImageProvider == null
+                    ? Text(
+                        avatarName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join(''),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
+              );
+            },
           ),
           const SizedBox(width: 12),
           
@@ -215,9 +276,9 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Split request",
-                  style: TextStyle(
+                Text(
+                  request["type"] == "type_1" ? "Split request" : "Payment request",
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
@@ -244,7 +305,7 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      "Requested by you",
+                      "Requested by ${request["description"]}",
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -259,10 +320,10 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
           // Amount
           Text(
             "₹${request["amount"].toStringAsFixed(2)}",
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.green,
+              color: request["type"] == "type_1" ? Colors.green : Colors.red,
             ),
           ),
         ],

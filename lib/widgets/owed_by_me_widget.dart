@@ -1,51 +1,51 @@
 import 'package:flutter/material.dart';
 import '../owed_by_me_expenses.dart';
-
-
-class Data {
-  static final List<Map<String, dynamic>> allData = [
-    {
-      "name": "Aatif Aftab",
-      "requests" : 1,
-      "amount" : 710,
-    },
-    {
-      "name": "Mukhtar Khan",
-      "requests" : 2,
-      "amount" : 100,
-    },
-    {
-      "name": "Zaid Ahmad",
-      "requests" : 5,
-      "amount" : 90,
-    },
-    {
-      "name": "Faraz Khan",
-      "requests" : 2,
-      "amount" : 10,
-    },
-
-    {
-      "name": "Haris Mirza",
-      "requests" : 1,
-      "amount" : 9,
-    },
-  ];
-}
+import 'dart:convert';
 
 class OwedByMeWidget extends StatelessWidget {
-  const OwedByMeWidget({Key? key}) : super(key: key);
+  final List<Map<String, dynamic>> data;
+  const OwedByMeWidget({Key? key, required this.data}) : super(key: key);
+    ImageProvider? _getProfileImageProvider(String? profilePicture) {
+    if (profilePicture == null || profilePicture.isEmpty) {
+      return null;
+    }
+    
+    // Check if it's a base64 image
+    if (profilePicture.startsWith('data:image/')) {
+      try {
+        // Extract base64 data from the data URL
+        final base64Data = profilePicture.split(',')[1];
+        final bytes = base64Decode(base64Data);
+        return MemoryImage(bytes);
+      } catch (e) {
+        print('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    
+    // Check if it's a network URL
+    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      return NetworkImage(profilePicture);
+    }
+    
+    // If it's a local asset path
+    if (profilePicture.startsWith('assets/')) {
+      return AssetImage(profilePicture);
+    }
+    
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     // Check if there are any expenses
-    if (Data.allData.isEmpty) {
+    if (data.isEmpty) {
       return _buildEmptyState();
     }
     
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
-      itemCount: Data.allData.length,
+      itemCount: data.length,
       itemBuilder: (context, index) {
           return GestureDetector(
           onTap: () {
@@ -53,9 +53,9 @@ class OwedByMeWidget extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => OwedByMeExpensesPage(
-                  userName: Data.allData[index]["name"],
-                  totalAmount: Data.allData[index]["amount"],
-                  requestCount: Data.allData[index]["requests"],
+                  userName: data[index]["full_name"] ?? "Unknown",
+                  totalAmount: data[index]["total_amount"] ?? 0,
+                  requestCount: data[index]["total_request"] ?? 0,
                 ),
               ),
             );
@@ -73,9 +73,17 @@ class OwedByMeWidget extends StatelessWidget {
             child: Row(
               children: [
                 // Profile Avatar
-                CircleAvatar(
+                Builder(
+                  builder: (context) {
+                    final imageProvider = _getProfileImageProvider(data[index]["profile_picture"]);
+                    return CircleAvatar(
                     radius: 20,
-                    backgroundImage: const AssetImage("assets/profilepic.png"),
+                      backgroundImage: imageProvider,
+                      child: imageProvider == null
+                          ? const Icon(Icons.person)
+                          : null,
+                    );
+                  },
                   ),
                 const SizedBox(width: 16),
                 
@@ -85,7 +93,7 @@ class OwedByMeWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        Data.allData[index]["name"],
+                        data[index]["full_name"] ?? "Unknown",
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -93,7 +101,7 @@ class OwedByMeWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${Data.allData[index]["requests"]} request${Data.allData[index]["requests"] == 1 ? '' : 's'} pending',
+                        '${data[index]["total_request"] ?? 0} request${(data[index]["total_request"] ?? 0) == 1 ? '' : 's'} pending',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -108,7 +116,7 @@ class OwedByMeWidget extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '₹${Data.allData[index]["amount"]}',
+                      '₹${data[index]["total_amount"] ?? 0}',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

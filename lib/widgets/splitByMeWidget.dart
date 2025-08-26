@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import '../constants/app_constants.dart';
 
 class SplitByMeWidget extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -102,10 +103,10 @@ class SplitByMeWidget extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            "Split request",
+                            AppConstants.SPLIT_REQUEST,
                             style: TextStyle(
                               color: Colors.black87,
-                              fontSize: 14,
+                              fontSize: AppConstants.FONT_MEDIUM,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -127,11 +128,11 @@ class SplitByMeWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       LinearProgressIndicator(
-                        value: data["paidCount"]/data["totalCount"],
-                        minHeight: 8,
+                        value: data["totalCount"] > 0 ? data["paidCount"] / data["totalCount"] : 0.0,
+                        minHeight: AppConstants.SMALL_PADDING,
                         backgroundColor: Colors.grey[300],
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(AppConstants.SMALL_BORDER_RADIUS),
                       ),
                       const SizedBox(height: 4),
                       Row(

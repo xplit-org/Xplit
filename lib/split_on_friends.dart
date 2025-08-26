@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
 import 'select_friends.dart';
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'logic/get_data.dart';
+import 'logic/create_local_db.dart';
+import 'package:sqflite/sqflite.dart';
+import 'dart:math';
+import 'constants/app_constants.dart';
 
 class SplitOnFriendsPage extends StatefulWidget {
   final double amount;
   final List<Friend> selectedFriends;
-  
+  final VoidCallback? onDataSaved; // Callback to notify parent when data is saved
+
   const SplitOnFriendsPage({
-    super.key, 
+    super.key,
     required this.amount,
     required this.selectedFriends,
+    this.onDataSaved,
   });
 
   @override
@@ -21,76 +30,344 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
   List<Friend> selectedFriends = [];
   Map<String, TextEditingController> amountControllers = {};
   bool _isRedistributing = false; // Flag to prevent infinite loops
-  
+
+    // Helper function to create ImageProvider for profile pictures
+  ImageProvider? _getProfileImageProvider(String? profilePicture) {    
+    if (profilePicture == null || profilePicture.isEmpty) {
+      print('Profile picture is null or empty');
+      return null;
+    }
+    
+    // Check if it's a base64 image
+    if (profilePicture.startsWith('data:image/')) {
+      try {
+        // Extract base64 data from the data URL
+        final base64Data = profilePicture.split(',')[1];
+        final bytes = base64Decode(base64Data);
+        print('Successfully created MemoryImage from base64');
+        return MemoryImage(bytes);
+      } catch (e) {
+        print('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    
+    // Check if it's a network URL
+    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      return NetworkImage(profilePicture);
+    }
+    
+    // If it's a local asset path
+    if (profilePicture.startsWith('assets/')) {
+      return AssetImage(profilePicture);
+    }
+    return null;
+  }
+
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     selectedFriends = List.from(widget.selectedFriends);
-    
-    // Initialize amount controllers with equal values
+
+    // Initialize amount controllers with equal values (default for first tab)
+    _updateAmountsForCurrentTab();
+
+    // Add listener to tab controller to update amounts when tab changes
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        _updateAmountsForCurrentTab();
+      }
+    });
+  }
+
+  // Update amounts based on current active tab
+  void _updateAmountsForCurrentTab() {
+    if (selectedFriends.isEmpty) return;
+
+    switch (_tabController.index) {
+      case 0: // Split Evenly
+        _updateAmountsForEvenSplit();
+        break;
+      case 1: // Split by Amounts
+        _updateAmountsForAmountSplit();
+        break;
+      case 2: // Split by Shares
+        _updateAmountsForShareSplit();
+        break;
+    }
+  }
+
+  // Update amounts for even split
+  void _updateAmountsForEvenSplit() {
     final equalAmount = widget.amount / selectedFriends.length;
+    
     for (var friend in selectedFriends) {
-      // Show whole number if it's a whole number, otherwise show 2 decimal places
-      final displayAmount = equalAmount == equalAmount.roundToDouble() 
+      final displayAmount = equalAmount == equalAmount.roundToDouble()
           ? equalAmount.toInt().toString()
           : equalAmount.toStringAsFixed(2);
+
+      // Create controller if it doesn't exist
+      if (!amountControllers.containsKey(friend.id)) {
+        amountControllers[friend.id] = TextEditingController();
+        
+        // Add listener for automatic redistribution (only for amount split tab)
+        amountControllers[friend.id]!.addListener(() {
+          if (!_isRedistributing && _tabController.index == 1) {
+            _redistributeAmounts(friend.id);
+          }
+        });
+      }
       
-      amountControllers[friend.id] = TextEditingController(
-        text: displayAmount,
-      );
+      // Update the amount
+      amountControllers[friend.id]!.text = displayAmount;
+    }
+  }
+
+  // Update amounts for amount split (with redistribution logic)
+  void _updateAmountsForAmountSplit() {
+    final equalAmount = widget.amount / selectedFriends.length;
+    
+    for (var friend in selectedFriends) {
+      final displayAmount = equalAmount == equalAmount.roundToDouble()
+          ? equalAmount.toInt().toString()
+          : equalAmount.toStringAsFixed(2);
+
+      // Create controller if it doesn't exist
+      if (!amountControllers.containsKey(friend.id)) {
+        amountControllers[friend.id] = TextEditingController();
+        
+        // Add listener for automatic redistribution
+        amountControllers[friend.id]!.addListener(() {
+          if (!_isRedistributing) {
+            _redistributeAmounts(friend.id);
+          }
+        });
+      }
       
-      // Add listener to each controller for automatic redistribution
-      amountControllers[friend.id]!.addListener(() {
-        if (!_isRedistributing) {
-          _redistributeAmounts(friend.id);
-        }
-      });
+      // Update the amount
+      amountControllers[friend.id]!.text = displayAmount;
+    }
+  }
+
+  // Update amounts for share split
+  void _updateAmountsForShareSplit() {
+    // Calculate total shares
+    int totalShares = 0;
+    for (var friend in selectedFriends) {
+      // Initialize share value if not already set
+      if (friend.share == null) {
+        friend.share = 1;
+      }
+      totalShares += friend.share!;
+    }
+
+    for (var friend in selectedFriends) {
+      // Calculate amount based on shares
+      final shareAmount = totalShares > 0
+          ? (widget.amount * (friend.share! / totalShares))
+          : 0.0;
+
+      final displayAmount = shareAmount == shareAmount.roundToDouble()
+          ? shareAmount.toInt().toString()
+          : shareAmount.toStringAsFixed(2);
+
+      // Create controller if it doesn't exist
+      if (!amountControllers.containsKey(friend.id)) {
+        amountControllers[friend.id] = TextEditingController();
+      }
+      
+      // Update the amount
+      amountControllers[friend.id]!.text = displayAmount;
     }
   }
 
   void _redistributeAmounts(String changedFriendId) {
     if (_isRedistributing) return; // Prevent recursive calls
-    
+
     _isRedistributing = true;
-    
+
+    print('amountControllers: $amountControllers');
+
     // Get the amount entered for the changed friend
     final changedController = amountControllers[changedFriendId];
     if (changedController == null) {
       _isRedistributing = false;
       return;
     }
-    
+
     final changedAmount = double.tryParse(changedController.text) ?? 0.0;
-    
+
     // Calculate remaining amount
     final remainingAmount = widget.amount - changedAmount;
-    
+
     // Get other friends (excluding the changed one)
-    final otherFriends = selectedFriends.where((f) => f.id != changedFriendId).toList();
-    
-    if (otherFriends.isEmpty) {
-      _isRedistributing = false;
-      return;
-    }
-    
-    // Calculate equal amount for remaining friends
+    final otherFriends = selectedFriends.where((friend) => friend.id != changedFriendId).toList();
+
+    if (otherFriends.isNotEmpty) {
+      // Distribute remaining amount equally among other friends
     final equalAmount = remainingAmount / otherFriends.length;
-    
-    // Update other friends' amounts
+
     for (var friend in otherFriends) {
       final controller = amountControllers[friend.id];
       if (controller != null) {
         // Show whole number if it's a whole number, otherwise show 2 decimal places
-        final displayAmount = equalAmount == equalAmount.roundToDouble() 
+        final displayAmount = equalAmount == equalAmount.roundToDouble()
             ? equalAmount.toInt().toString()
             : equalAmount.toStringAsFixed(2);
-        
+
         controller.text = displayAmount;
+        }
       }
     }
-    
+
     _isRedistributing = false;
+  }
+
+  // Generate a unique ID for the split with database check
+  Future<String> _generateUniqueSplitId() async {
+    final db = await LocalDB.database;
+    String splitId;
+    bool isUnique = false;
+    int attempts = 0;
+    const maxAttempts = 10;
+    
+    do {
+      // Generate a UUID-like string
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final random = Random();
+      final randomPart = random.nextInt(999999).toString().padLeft(6, '0');
+      splitId = 'split_${timestamp}_$randomPart';
+      
+      // Check if this ID already exists in the database
+      final List<Map<String, dynamic>> existing = await db.query(
+        'user_data',
+        where: 'id = ?',
+        whereArgs: [splitId],
+      );
+      
+      isUnique = existing.isEmpty;
+      attempts++;
+      
+      if (!isUnique && attempts < maxAttempts) {
+        // Wait a bit before trying again to ensure timestamp changes
+        await Future.delayed(Duration(milliseconds: 10));
+      }
+    } while (!isUnique && attempts < maxAttempts);
+    
+    if (!isUnique) {
+      // Fallback: use timestamp with microsecond precision
+      final now = DateTime.now();
+      splitId = 'split_${now.microsecondsSinceEpoch}_${Random().nextInt(9999)}';
+    }
+    
+    print('Generated unique split ID: $splitId');
+    return splitId;
+  }
+
+  // Save split data to local database
+  Future<void> _saveSplitToDatabase() async {
+    try {
+      final db = await LocalDB.database;
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final currentUserMobile = currentUser?.phoneNumber;
+      
+      if (currentUserMobile == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Generate unique ID for this split
+      final splitId = await _generateUniqueSplitId();
+      final currentTime = DateTime.now().toIso8601String();
+
+      // 1. Insert main split record into user_data table
+      await db.insert(
+        AppConstants.TABLE_USER_DATA,
+        {
+          AppConstants.COL_ID: splitId,
+          AppConstants.COL_TYPE: AppConstants.TYPE_1, // Split by me
+          AppConstants.COL_AMOUNT: widget.amount,
+          AppConstants.COL_SPLIT_BY: null,
+          AppConstants.COL_SPLIT_TIME: currentTime,
+          AppConstants.COL_STATUS: null,
+          AppConstants.COL_PAID_TIME: null,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // 2. Insert individual split records into split_on table
+      for (var friend in selectedFriends) {
+        final amount = double.tryParse(amountControllers[friend.id]?.text ?? '0') ?? 0.0;
+        
+        // Check if this friend is the current user
+        final isCurrentUser = friend.id == currentUserMobile;
+
+        await db.insert(
+          AppConstants.TABLE_SPLIT_ON,
+          {
+            AppConstants.COL_USER_DATA_ID: splitId,
+            AppConstants.COL_MOBILE_NO: friend.id,
+            AppConstants.COL_AMOUNT: amount,
+            AppConstants.COL_STATUS: isCurrentUser ? AppConstants.STATUS_PAID : AppConstants.STATUS_UNPAID, // Current user is marked as paid
+            AppConstants.COL_PAID_TIME: isCurrentUser ? currentTime : null,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      // 3. If current user is not in selected friends, add them with their share as paid
+      final currentUserInList = selectedFriends.any((friend) => friend.id == currentUserMobile);
+      if (!currentUserInList) {
+        // Calculate current user's share (total amount minus what others owe)
+        double othersTotal = 0.0;
+        for (var friend in selectedFriends) {
+          final amount = double.tryParse(amountControllers[friend.id]?.text ?? '0') ?? 0.0;
+          othersTotal += amount;
+        }
+        final currentUserShare = widget.amount - othersTotal;
+        
+        if (currentUserShare > 0) {
+          await db.insert(
+            AppConstants.TABLE_SPLIT_ON,
+            {
+              AppConstants.COL_USER_DATA_ID: splitId,
+              AppConstants.COL_MOBILE_NO: currentUserMobile,
+              AppConstants.COL_AMOUNT: currentUserShare,
+              AppConstants.COL_STATUS: AppConstants.STATUS_PAID, // Current user is marked as paid
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+      }
+
+      print('Split data saved successfully with ID: $splitId');
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppConstants.SUCCESS_SPLIT_SAVED),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Call the callback to notify parent that data was saved
+      widget.onDataSaved?.call();
+      
+      // Navigate back to home page
+      Navigator.of(context).popUntil((route) => route.isFirst);
+
+    } catch (e) {
+      print('Error saving split data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${AppConstants.ERROR_SAVING_DATA}: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
@@ -103,37 +380,46 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
     super.dispose();
   }
 
-  void _onSplitPressed() {
+  void _onSplitPressed() async {
     if (selectedFriends.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one friend'),
+        SnackBar(
+          content: Text(AppConstants.ERROR_NO_FRIENDS_SELECTED),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
-    String splitType = '';
-    switch (_tabController.index) {
-      case 0:
-        splitType = 'Evenly';
-        break;
-      case 1:
-        splitType = 'By Amounts';
-        break;
-      case 2:
-        splitType = 'By Shares';
-        break;
+    // Validate that all amounts are properly set
+    double totalAmount = 0.0;
+    for (var friend in selectedFriends) {
+      final amount = double.tryParse(amountControllers[friend.id]?.text ?? '0') ?? 0.0;
+      totalAmount += amount;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Splitting ₹${widget.amount.toStringAsFixed(2)} $splitType among ${selectedFriends.length} friends'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Check if total matches the original amount (with small tolerance for floating point)
+    if ((totalAmount - widget.amount).abs() > 0.01) {
+          ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${AppConstants.ERROR_AMOUNT_MISMATCH} (₹${totalAmount.toStringAsFixed(2)}) must equal ₹${widget.amount.toStringAsFixed(2)}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+          // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Saving split...'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+    // Save to database
+    await _saveSplitToDatabase();
   }
 
   @override
@@ -161,9 +447,9 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
           unselectedLabelColor: Colors.grey,
           indicatorColor: Colors.blue,
           tabs: const [
-            Tab(text: 'Split Evenly'),
-            Tab(text: 'Split by Amounts'),
-            Tab(text: 'Split by Shares'),
+            Tab(text: AppConstants.TAB_SPLIT_EVENLY),
+            Tab(text: AppConstants.TAB_SPLIT_BY_AMOUNTS),
+            Tab(text: AppConstants.TAB_SPLIT_BY_SHARES),
           ],
         ),
       ),
@@ -209,7 +495,9 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
               child: ElevatedButton(
                 onPressed: selectedFriends.isNotEmpty ? _onSplitPressed : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: selectedFriends.isNotEmpty ? Colors.blue : Colors.grey[300],
+                  backgroundColor: selectedFriends.isNotEmpty
+                      ? Colors.blue
+                      : Colors.grey[300],
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25),
@@ -232,22 +520,26 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
       itemCount: selectedFriends.length,
       itemBuilder: (context, index) {
         final friend = selectedFriends[index];
-        final splitAmount = selectedFriends.isNotEmpty 
-            ? widget.amount / selectedFriends.length 
+        final splitAmount = selectedFriends.isNotEmpty
+            ? widget.amount / selectedFriends.length
             : 0.0;
-        
+
         return ListTile(
           leading: Stack(
             children: [
-              CircleAvatar(
-                backgroundColor: Colors.blue,
-                child: Text(
-                  friend.name[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final imageProvider = _getProfileImageProvider(
+                    friend.profilePicture,
+                  );
+                  return CircleAvatar(
+                    radius: 25,
+                    backgroundImage: imageProvider,
+                    child: imageProvider == null
+                        ? const Icon(Icons.person)
+                        : null,
+                  );
+                },
               ),
               Positioned(
                 right: 0,
@@ -258,11 +550,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
-                  child: const Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 16,
-                  ),
+                  child: const Icon(Icons.check, color: Colors.white, size: 16),
                 ),
               ),
             ],
@@ -295,15 +583,15 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
               return ListTile(
                 leading: Stack(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.blue,
-                      child: Text(
-                        friend.name[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final imageProvider = _getProfileImageProvider(friend.profilePicture);
+                        return CircleAvatar(
+                          radius: 25,
+                          backgroundImage: imageProvider,
+                          child: imageProvider == null ? const Icon(Icons.person) : null,
+                        );
+                      },
                     ),
                     Positioned(
                       right: 0,
@@ -337,14 +625,18 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                         child: TextField(
                           controller: amountControllers[friend.id],
                           enabled: true,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           textAlign: TextAlign.right,
                           decoration: InputDecoration(
                             hintText: '0.00',
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                            ),
                             hintStyle: const TextStyle(
                               color: Colors.black54,
                               fontSize: 14,
@@ -387,7 +679,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
     for (var friend in selectedFriends) {
       totalShares += friend.share ?? 1;
     }
-    
+
     return Column(
       children: [
         Expanded(
@@ -399,24 +691,19 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
               if (friend.share == null) {
                 friend.share = 1;
               }
-              
-              // Calculate amount based on shares
-              final shareAmount = totalShares > 0 
-                  ? (widget.amount * (friend.share! / totalShares))
-                  : 0.0;
-              
+
               return ListTile(
                 leading: Stack(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.blue,
-                      child: Text(
-                        friend.name[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final imageProvider = _getProfileImageProvider(friend.profilePicture);
+                        return CircleAvatar(
+                          radius: 25,
+                          backgroundImage: imageProvider,
+                          child: imageProvider == null ? const Icon(Icons.person) : null,
+                        );
+                      },
                     ),
                     Positioned(
                       right: 0,
@@ -444,7 +731,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '₹${shareAmount.toStringAsFixed(2)}',
+                      '₹${amountControllers[friend.id]?.text ?? '0.00'}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.green,
@@ -461,16 +748,21 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                       width: 20,
                       height: 20,
                       decoration: BoxDecoration(
-                        color: friend.share! > 1 ? Colors.red : Colors.grey[300],
+                        color: friend.share! > 1
+                            ? Colors.red
+                            : Colors.grey[300],
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
                         icon: const Icon(Icons.remove, size: 12),
-                        color: friend.share! > 1 ? Colors.white : Colors.grey[600],
+                        color: friend.share! > 1
+                            ? Colors.white
+                            : Colors.grey[600],
                         onPressed: friend.share! > 1
                             ? () {
                                 setState(() {
                                   friend.share = friend.share! - 1;
+                                  _updateAmountsForCurrentTab();
                                 });
                               }
                             : null,
@@ -481,7 +773,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                         ),
                       ),
                     ),
-                    
+
                     // Share value display
                     Container(
                       width: 25,
@@ -495,7 +787,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                         ),
                       ),
                     ),
-                    
+
                     // Plus button
                     Container(
                       width: 20,
@@ -510,6 +802,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                         onPressed: () {
                           setState(() {
                             friend.share = friend.share! + 1;
+                            _updateAmountsForCurrentTab();
                           });
                         },
                         padding: EdgeInsets.zero,
@@ -528,4 +821,4 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
       ],
     );
   }
-} 
+}

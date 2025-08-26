@@ -8,8 +8,8 @@ import 'widgets/paid_widget.dart';
 import 'widgets/splitByMeWidget.dart';
 import 'expenses.dart';
 import 'user_dashboard.dart';
+import 'constants/app_constants.dart';
 import 'friend_request_notification_service.dart';
-
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,9 +18,10 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {    
+  ImageProvider? _getProfileImageProvider(String? profilePicture) {
+    
     if (profilePicture == null || profilePicture.isEmpty) {
       print('Profile picture is null or empty');
       return null;
@@ -42,14 +43,26 @@ class _HomePageState extends State<HomePage> {
     
     // Check if it's a network URL
     if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      print('Creating NetworkImage for: $profilePicture');
       return NetworkImage(profilePicture);
     }
     
     // If it's a local asset path
     if (profilePicture.startsWith('assets/')) {
+      print('Creating AssetImage for: $profilePicture');
       return AssetImage(profilePicture);
     }
+    
+    print('Profile picture format not recognized: $profilePicture');
     return null;
+  }
+
+  // Helper function to get initials from name
+  String _getInitials(String name) {
+    if (name.isEmpty) return "U";
+    List<String> parts = name.trim().split(" ");
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
   List<Map<String, dynamic>> _allData = [];
@@ -57,11 +70,32 @@ class _HomePageState extends State<HomePage> {
   Map<String, double> _totalAmounts = {'owedToMe': 0.0, 'owedByMe': 0.0};
   bool _isLoading = true;
   String? _currentUserMobile;
+  late FocusNode _focusNode;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _focusNode = FocusNode();
+    _scrollController = ScrollController();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _focusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app comes back to foreground
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -73,7 +107,6 @@ class _HomePageState extends State<HomePage> {
         // Load all data
         final userProfile = await GetData.getUserProfile(_currentUserMobile!);
         final allData = await GetData.getAllUserData(_currentUserMobile!);
-
         setState(() {
           _allData = allData;
           _userProfile = userProfile;
@@ -82,6 +115,17 @@ class _HomePageState extends State<HomePage> {
                             'owedByMe': userProfile['to_pay'],
                           };
           _isLoading = false;
+        });
+        
+        // Scroll to bottom after data is loaded
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
         });
       } else {
         setState(() {
@@ -94,6 +138,14 @@ class _HomePageState extends State<HomePage> {
         _isLoading = false;
       });
     }
+  }
+
+  // Method to refresh data (can be called from anywhere)
+  Future<void> _refreshData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    await _loadData();
   }
 
   @override
@@ -147,9 +199,9 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _userProfile['full_name'] ?? "Unknown User",
+                        _userProfile['full_name'] ?? AppConstants.DEFAULT_USER_NAME,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: AppConstants.FONT_XLARGE,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
@@ -160,8 +212,8 @@ class _HomePageState extends State<HomePage> {
                           Icon(Icons.add_circle, color: Colors.green[600], size: 16),
                           const SizedBox(width: 4),
                           const Text(
-                            "Owed to Me",
-                            style: TextStyle(fontSize: 14, color: Colors.black54),
+                            AppConstants.LABEL_OWED_TO_ME,
+                            style: TextStyle(fontSize: AppConstants.FONT_MEDIUM, color: Colors.black54),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -180,8 +232,8 @@ class _HomePageState extends State<HomePage> {
                           Icon(Icons.remove_circle, color: Colors.red[600], size: 16),
                           const SizedBox(width: 4),
                           const Text(
-                            "Owed by Me",
-                            style: TextStyle(fontSize: 14, color: Colors.black54),
+                            AppConstants.LABEL_OWED_BY_ME,
+                            style: TextStyle(fontSize: AppConstants.FONT_MEDIUM, color: Colors.black54),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -204,7 +256,7 @@ class _HomePageState extends State<HomePage> {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const ExpensesPage()));
                     },
                     child: Image.asset(
-                      "assets/billLogo.png",
+                      AppConstants.ASSET_BILL_LOGO,
                       height: 40,
                       width: 40,
                     ),
@@ -257,23 +309,27 @@ class _HomePageState extends State<HomePage> {
                 ? const Center(child: CircularProgressIndicator())
                 : _allData.isEmpty 
                     ? _buildEmptyState()
-                    : ListView(
-                        children: [
-                          // Generate widgets from real data
-                          ..._allData.map((data) {
-                            if (data["type"] == 1) {
-                              return SplitByMeWidget(data: data);
-                            } else if (data["type"] == 0) {
-                              if(data["status"] == "Paid") {
-                                return PaidWidget(data: data);
-                              } else {
-                                return UnpaidWidget(data: data);
-                              }
-                            } 
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        child: ListView(
+                          controller: _scrollController,
+                          children: [
+                            // Generate widgets from real data
+                            ..._allData.map((data) {
+                              if (data["type"] == 1) {
+                                return SplitByMeWidget(data: data);
+                              } else if (data["type"] == 0) {
+                                if(data["status"] == "Paid") {
+                                  return PaidWidget(data: data);
+                                } else {
+                                  return UnpaidWidget(data: data);
+                                }
+                              } 
 
-                            return UnpaidWidget(data: data);
-                          }),
-                        ],
+                              return UnpaidWidget(data: data);
+                            }),
+                          ],
+                        ),
                       ),
           ),
 
@@ -297,13 +353,20 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.symmetric(vertical: 6),
                 ),
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SplitAmountPage()));
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(
+                      builder: (context) => SplitAmountPage(
+                        onDataSaved: _refreshData,
+                      ),
+                    ),
+                  );
                   // Handle split expense button press
                 },
                 child: const Text(
-                  "Split an expense",
+                  AppConstants.BUTTON_SPLIT_EXPENSE,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: AppConstants.FONT_XXLARGE,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -321,25 +384,25 @@ class _HomePageState extends State<HomePage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Image.asset(
-            'assets/null.jpg',
+            AppConstants.ASSET_NULL_IMAGE,
             height: 200,
             width: 200,
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 20),
           const Text(
-            'No split expenses',
+            AppConstants.LABEL_NO_SPLIT_EXPENSES,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: AppConstants.FONT_XLARGE,
               fontWeight: FontWeight.w600,
               color: Colors.grey,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Create your first split expense to get started',
+            AppConstants.LABEL_CREATE_FIRST_SPLIT,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: AppConstants.FONT_MEDIUM,
               color: Colors.grey,
             ),
             textAlign: TextAlign.center,

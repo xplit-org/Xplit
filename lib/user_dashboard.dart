@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'logic/get_data.dart';
+import 'constants/app_constants.dart';
 import 'friends_request_page.dart';
 import 'package:sqflite/sqflite.dart';
 import 'logic/create_local_db.dart';
@@ -231,9 +232,9 @@ class _UserDashboardState extends State<UserDashboard> {
 
               // Title
               const Text(
-                'Invite Friends',
+                AppConstants.DIALOG_INVITE_FRIENDS_TITLE,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: AppConstants.FONT_XXLARGE,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
@@ -281,17 +282,17 @@ class _UserDashboardState extends State<UserDashboard> {
                       Clipboard.setData(ClipboardData(text: shareLink));
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Link copied to clipboard!'),
+                        SnackBar(
+                          content: Text(AppConstants.SUCCESS_LINK_COPIED),
                           backgroundColor: Colors.green,
                         ),
                       );
                     },
                     icon: const Icon(Icons.copy, color: Colors.white),
                     label: const Text(
-                      'Copy Link',
+                      AppConstants.BUTTON_COPY_LINK,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppConstants.FONT_LARGE,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
@@ -321,9 +322,9 @@ class _UserDashboardState extends State<UserDashboard> {
                     },
                     icon: const Icon(Icons.share, color: Colors.white),
                     label: const Text(
-                      'Share',
+                      AppConstants.BUTTON_SHARE,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppConstants.FONT_LARGE,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
@@ -781,8 +782,8 @@ class _UserDashboardState extends State<UserDashboard> {
           ),
           const SizedBox(width: 16),
           const Text(
-            'Profile',
-            style: TextStyle(fontSize: 20, color: Colors.black87),
+            AppConstants.PROFILE_TITLE,
+            style: TextStyle(fontSize: AppConstants.FONT_XXLARGE, color: Colors.black87),
           ),
           const Spacer(),
           Stack(
@@ -854,7 +855,7 @@ class _UserDashboardState extends State<UserDashboard> {
                   );
                   return imageProvider != null
                       ? Image(image: imageProvider, fit: BoxFit.cover)
-                      : Image.asset('assets/image 5.png', fit: BoxFit.cover);
+                      : Image.asset(AppConstants.ASSET_PROFILE_PIC, fit: BoxFit.cover);
                 },
               ),
             ),
@@ -869,7 +870,7 @@ class _UserDashboardState extends State<UserDashboard> {
               children: [
                 // Name
                 Text(
-                  _userData['full_name'] ?? 'User Name',
+                  _userData?['full_name'] ?? AppConstants.DEFAULT_USER_NAME,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -889,7 +890,7 @@ class _UserDashboardState extends State<UserDashboard> {
                     ),
                     Expanded(
                       child: Text(
-                        _userData['upi_id'] ?? 'Not set',
+                        _userData?['upi_id'] ?? AppConstants.DEFAULT_UPI_ID,
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.black87,
@@ -907,7 +908,7 @@ class _UserDashboardState extends State<UserDashboard> {
                     const Icon(Icons.phone, color: Colors.blue, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      '+91 ${_userData['mobile_number'] ?? 'N/A'}',
+                      '+91 ${_userData?['mobile_number'] ?? AppConstants.DEFAULT_MOBILE}',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.black87,
@@ -938,9 +939,9 @@ class _UserDashboardState extends State<UserDashboard> {
               onPressed: _showInviteFriendsDialog,
               icon: const Icon(Icons.share, color: Colors.white),
               label: const Text(
-                'Invite friends to use the app',
+                AppConstants.PROFILE_INVITE_FRIENDS,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: AppConstants.FONT_LARGE,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -965,9 +966,9 @@ class _UserDashboardState extends State<UserDashboard> {
               onPressed: _showAddFriendDialog,
               icon: const Icon(Icons.person_add, color: Colors.white),
               label: const Text(
-                'Add your friends',
+                AppConstants.PROFILE_ADD_FRIENDS,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: AppConstants.FONT_LARGE,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -984,6 +985,45 @@ class _UserDashboardState extends State<UserDashboard> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildNoDataUI() {
+    return Column(
+      children: [
+        // Header Section
+        _buildHeader(),
+
+        // No Data Section
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.person_off, size: 80, color: Colors.grey[400]),
+                  const SizedBox(height: 20),
+                  Text(
+                    AppConstants.LABEL_LOADING_PROFILE,
+                    style: TextStyle(
+                      fontSize: AppConstants.FONT_XXLARGE,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    AppConstants.LABEL_WAIT_LOADING_PROFILE,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: AppConstants.FONT_LARGE, color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
