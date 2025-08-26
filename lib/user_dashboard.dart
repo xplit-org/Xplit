@@ -4,7 +4,10 @@ import 'dart:convert';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'logic/get_data.dart';
-
+import 'friends_request_page.dart';
+import 'package:sqflite/sqflite.dart';
+import 'logic/create_local_db.dart';
+import 'firebase_sync_service.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -15,12 +18,12 @@ class UserDashboard extends StatefulWidget {
 
 class _UserDashboardState extends State<UserDashboard> {
   // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {    
+  ImageProvider? _getProfileImageProvider(String? profilePicture) {
     if (profilePicture == null || profilePicture.isEmpty) {
       print('Profile picture is null or empty');
       return null;
     }
-    
+
     // Check if it's a base64 image
     if (profilePicture.startsWith('data:image/')) {
       try {
@@ -34,12 +37,13 @@ class _UserDashboardState extends State<UserDashboard> {
         return null;
       }
     }
-    
+
     // Check if it's a network URL
-    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+    if (profilePicture.startsWith('http://') ||
+        profilePicture.startsWith('https://')) {
       return NetworkImage(profilePicture);
     }
-    
+
     // If it's a local asset path
     if (profilePicture.startsWith('assets/')) {
       return AssetImage(profilePicture);
@@ -50,11 +54,71 @@ class _UserDashboardState extends State<UserDashboard> {
   Map<String, dynamic> _userData = {};
   bool _isLoading = true;
   String? _currentUserMobile;
+  List<Map<String, dynamic>> _pendingRequests = [];
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadPendingRequests();
+  }
+
+ 
+
+  /// Show SnackBar within modal context
+  void _showModalSnackBar(BuildContext context, String message, Color backgroundColor) {
+    // Use Overlay to show message within the modal
+    late OverlayEntry overlayEntry;
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50, // Position above the modal content
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                  onPressed: () => overlayEntry.remove(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(overlayEntry);
+    
+    // Auto-dismiss after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      overlayEntry.remove();
+    });
   }
 
   Future<void> _loadData() async {
@@ -80,6 +144,18 @@ class _UserDashboardState extends State<UserDashboard> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadPendingRequests() async {
+    try {
+      final pending = await GetData.getPendingFriendRequests();
+      setState(() {
+        _pendingRequests = pending;
+      });
+      print('Pending requests count: ${_pendingRequests.length}');
+    } catch (e) {
+      print('Error loading pending requests: $e');
     }
   }
 
@@ -113,12 +189,16 @@ class _UserDashboardState extends State<UserDashboard> {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
+  // Get the count of pending friend requests
+  int _getPendingFriendRequestCount() {
+    final count = _pendingRequests.length;
+    print('UserDashboard: Pending friend request count: $count');
+    return count;
+  }
 
   void _showInviteFriendsDialog() {
     final String shareLink =
-        'https://expenser.app/invite/${_userData?['mobile_number'] ?? 'N/A'}';
-    final String shareText =
-        'Check out this awesome expense sharing app! Join me using this link: $shareLink';
+        'https://expenser.app/invite/${_userData['mobile_number'] ?? 'N/A'}';
 
     showModalBottomSheet(
       context: context,
@@ -267,27 +347,6 @@ class _UserDashboardState extends State<UserDashboard> {
     );
   }
 
-  void _copyToClipboard(String text) async {
-    try {
-      await Clipboard.setData(ClipboardData(text: text));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Link copied to clipboard!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to copy link'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
   void _showAddFriendDialog() async {
     try {
       // Request permission (flutter_contacts handles both Android/iOS)
@@ -324,8 +383,40 @@ class _UserDashboardState extends State<UserDashboard> {
       List<Contact> filteredContacts = List.from(contacts);
       final TextEditingController searchController = TextEditingController();
       final FocusNode searchFocusNode = FocusNode();
+      final List<Map<String, dynamic>> friendsList =
+          await GetData.getFriendsList();
+      final List<String> requestedMobile = await GetData.getRequestedMobile(
+        _currentUserMobile!,
+      );
+      print('Friends List: $friendsList');
+      for (var friend in friendsList) {
+        print('Friend: $friend');
+      }
 
-      print('Contacts: $contacts');
+      // 1. Map of friends
+      final Map<String, String> friendMobileNumbers = Map.fromEntries(
+        friendsList
+            .map(
+              (friend) =>
+                  MapEntry(friend['mobile_number']?.toString() ?? '', 'Added'),
+            )
+            .where((entry) => entry.key.isNotEmpty),
+      );
+
+      // 2. Map of requested mobiles
+      final Map<String, String> requestedMobileNumbers = Map.fromEntries(
+        requestedMobile.map((mobile) => MapEntry(mobile, 'Requested')),
+      );
+
+      // 3. Merge both maps into one
+      final Map<String, String> combinedMap = {}
+        ..addAll(friendMobileNumbers)
+        ..addAll(requestedMobileNumbers);
+
+      // print('Combined Map: $combinedMap');
+
+      print('Friend mobile numbers: $friendMobileNumbers');
+      print('Requested mobile numbers: $requestedMobileNumbers');
 
       showModalBottomSheet(
         context: context,
@@ -435,15 +526,30 @@ class _UserDashboardState extends State<UserDashboard> {
                               itemBuilder: (context, index) {
                                 final contact = filteredContacts[index];
                                 final phone = contact.phones.isNotEmpty
-                                    ? formatPhoneNumber(contact.phones.first.number)
+                                    ? formatPhoneNumber(
+                                        contact.phones.first.number,
+                                      )
                                     : 'No number';
+
+                                // Check if this contact is already a friend or if request is pending
+                                final bool isAlreadyFriend = friendMobileNumbers
+                                    .containsKey(phone);
+                                final bool isRequestPending =
+                                    requestedMobileNumbers.containsKey(phone);
+                                final bool shouldDisableButton =
+                                    isAlreadyFriend || isRequestPending;
+
                                 return ListTile(
                                   leading: CircleAvatar(
                                     backgroundColor: Colors.blueAccent,
-                                    backgroundImage: contact.photo != null && contact.photo!.isNotEmpty
+                                    backgroundImage:
+                                        contact.photo != null &&
+                                            contact.photo!.isNotEmpty
                                         ? MemoryImage(contact.photo!)
                                         : null,
-                                    child: contact.photo == null || contact.photo!.isEmpty
+                                    child:
+                                        contact.photo == null ||
+                                            contact.photo!.isEmpty
                                         ? Text(
                                             _getInitials(contact.displayName),
                                             style: const TextStyle(
@@ -465,25 +571,97 @@ class _UserDashboardState extends State<UserDashboard> {
                                     phone,
                                   ), // now always with +91 if applicable
                                   trailing: ElevatedButton(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Friend request sent to $phone',
-                                          ),
-                                          duration: const Duration(seconds: 2),
-                                        ),
-                                      );
-                                    },
+                                    onPressed: shouldDisableButton
+                                        ? null
+                                        : () async {
+                                            final db = await LocalDB.database;
+
+                                            try {
+                                              print(
+                                                'Attempting to insert friend request...',
+                                              );
+                                              print(
+                                                'Sender: $_currentUserMobile, Receiver: $phone',
+                                              );
+                                              // Check if the user exists in Firebase before proceeding
+                                              final userExists = await FirebaseSyncService.checkUserExistsInFirebase(phone);
+                                              if (!userExists) {
+                                                _showModalSnackBar(context, 'This number is not registered in the app.', Colors.red);
+                                                return;
+                                              }
+                                              final result = await db.insert(
+                                                'friend_requests',
+                                                {
+                                                  'sender_mobile':_currentUserMobile,
+                                                  'receiver_mobile': phone,
+                                                  'full_name':contact.displayName,
+                                                  'status': 'pending',
+                                                  'created_at': DateTime.now().toIso8601String(),
+                                                },
+                                                conflictAlgorithm:
+                                                    ConflictAlgorithm.ignore,
+                                              );
+                                              print('Insert result: $result');
+
+                                              // Sync to Firebase for real-time notifications
+                                              final syncSuccess = await FirebaseSyncService.syncFriendRequestToFirebase(
+                                                sender_mobile: _currentUserMobile!,
+                                                receiver_mobile: phone,
+                                                full_name: contact.displayName,
+                                                id: result.toString(),
+                                                created_at: DateTime.now().toIso8601String(),
+                                              );
+
+                                              if (syncSuccess) {
+                                                print('Friend request synced to Firebase successfully');
+                                              } else {
+                                                print('Friend request saved locally but Firebase sync failed');
+                                              }
+
+                                              // update modal state so UI changes immediately
+                                              setModalState(() {
+                                                requestedMobileNumbers[phone] = 'Requested'; // add this number to pending map
+                                              });
+
+                                              _showModalSnackBar(context, 'Friend request sent to $phone', Colors.green);
+                                            } catch (e) {
+                                              _showModalSnackBar(context, 'Error sending request: $e', Colors.red);
+                                            }
+                                          },
+
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue,
+                                      backgroundColor: isRequestPending
+                                          ? Colors.grey
+                                          : shouldDisableButton
+                                              ? Colors.grey
+                                              : Colors.white,
+                                      elevation: isRequestPending ? 0 : 1,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      minimumSize: const Size(40, 40),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(20),
+                                        side: isRequestPending || shouldDisableButton
+                                            ? BorderSide.none
+                                            : const BorderSide(color: Colors.blue, width: 1),
                                       ),
                                     ),
-                                    child: const Text("Add"),
+                                    child: isRequestPending
+                                        ? const Icon(
+                                            Icons.hourglass_empty,
+                                            size: 24,
+                                            color: Colors.black,
+                                          )
+                                        : isAlreadyFriend 
+                                            ? const Icon(
+                                                Icons.check,
+                                                size: 24,
+                                                color: Colors.black,
+                                              )
+                                            : Image.asset(
+                                                'assets/addIcon.png',
+                                                width: 24,
+                                                height: 24,
+                                              ),
                                   ),
                                 );
                               },
@@ -523,10 +701,7 @@ class _UserDashboardState extends State<UserDashboard> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(
-                'Logout',
-                style: TextStyle(color: Colors.red),
-              ),
+              child: const Text('Logout', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -567,7 +742,7 @@ class _UserDashboardState extends State<UserDashboard> {
                       _buildFriendManagementSection(),
                     ],
                   ),
-            
+
             // Transparent Logout Button at Bottom Right
             Positioned(
               bottom: 20,
@@ -610,11 +785,51 @@ class _UserDashboardState extends State<UserDashboard> {
             style: TextStyle(fontSize: 20, color: Colors.black87),
           ),
           const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.black87),
-            onPressed: () {
-              // TODO: Implement notification logic
-            },
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.black87),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FriendsRequestPage(pendingRequests: _pendingRequests),
+                    ),
+                  );
+                  // Refresh the UI when returning from friends request page
+                  setState(() {});
+                },
+              ),
+              // Notification badge - only show when there are pending requests
+              if (_getPendingFriendRequestCount() > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '${_getPendingFriendRequestCount()}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -630,16 +845,16 @@ class _UserDashboardState extends State<UserDashboard> {
           Container(
             width: 100,
             height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle),
             child: ClipOval(
               child: Builder(
                 builder: (context) {
-                  final imageProvider = _getProfileImageProvider(_userData["profile_picture"]);
+                  final imageProvider = _getProfileImageProvider(
+                    _userData["profile_picture"],
+                  );
                   return imageProvider != null
                       ? Image(image: imageProvider, fit: BoxFit.cover)
-                      : Image.asset('assets/profilepic.png', fit: BoxFit.cover);
+                      : Image.asset('assets/image 5.png', fit: BoxFit.cover);
                 },
               ),
             ),
@@ -654,7 +869,7 @@ class _UserDashboardState extends State<UserDashboard> {
               children: [
                 // Name
                 Text(
-                  _userData?['full_name'] ?? 'User Name',
+                  _userData['full_name'] ?? 'User Name',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -674,7 +889,7 @@ class _UserDashboardState extends State<UserDashboard> {
                     ),
                     Expanded(
                       child: Text(
-                        _userData?['upi_id'] ?? 'Not set',
+                        _userData['upi_id'] ?? 'Not set',
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.black87,
@@ -692,7 +907,7 @@ class _UserDashboardState extends State<UserDashboard> {
                     const Icon(Icons.phone, color: Colors.blue, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      '+91 ${_userData?['mobile_number'] ?? 'N/A'}',
+                      '+91 ${_userData['mobile_number'] ?? 'N/A'}',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.black87,
@@ -767,49 +982,8 @@ class _UserDashboardState extends State<UserDashboard> {
               ),
             ),
           ),
-
-
         ],
       ),
-    );
-  }
-
-  Widget _buildNoDataUI() {
-    return Column(
-      children: [
-        // Header Section
-        _buildHeader(),
-
-        // No Data Section
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.person_off, size: 80, color: Colors.grey[400]),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Loading Profile...',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Please wait while we load your profile information.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
