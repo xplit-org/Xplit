@@ -9,7 +9,6 @@ import 'widgets/splitByMeWidget.dart';
 import 'expenses.dart';
 import 'user_dashboard.dart';
 import 'constants/app_constants.dart';
-import 'friend_request_notification_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -55,14 +54,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     
     print('Profile picture format not recognized: $profilePicture');
     return null;
-  }
-
-  // Helper function to get initials from name
-  String _getInitials(String name) {
-    if (name.isEmpty) return "U";
-    List<String> parts = name.trim().split(" ");
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
   List<Map<String, dynamic>> _allData = [];
@@ -261,16 +252,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       width: 40,
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.notification_add_outlined),
-                  tooltip: 'Test friend request notification',
-                  onPressed: () async {
-                    await FriendRequestNotificationService().showFriendRequestNotification(
-                      name: 'Test User',
-                      mobile: '+910000000000',
-                    );
-                  },
                 ),
               ],
             ),

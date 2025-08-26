@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'user_dashboard.dart';
 
 class FriendRequestNotificationService {
@@ -18,8 +19,11 @@ class FriendRequestNotificationService {
   );
 
   GlobalKey<NavigatorState>? _navigatorKey;
+  bool _isInitialized = false;
 
   Future<void> initialize({required GlobalKey<NavigatorState> navigatorKey}) async {
+    if (_isInitialized) return;
+    
     _navigatorKey = navigatorKey;
 
     const AndroidInitializationSettings androidInit = AndroidInitializationSettings('ic_notification');
@@ -34,27 +38,48 @@ class FriendRequestNotificationService {
       iOS: iosInit,
     );
 
-    await _fln.initialize(
-      settings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        final payload = response.payload;
-        if (payload == null) return;
-        try {
-          final data = jsonDecode(payload) as Map<String, dynamic>;
+    try {
+      await _fln.initialize(
+        settings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) async {
+          final payload = response.payload;
+          if (payload == null) return;
           _openDashboard();
-        } catch (_) {
-          _openDashboard();
-        }
-      },
-    );
+        },
+      );
 
-    // Android channel
-    await _fln.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(_channel);
+      // Android channel
+      await _fln.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(_channel);
 
-    // Android 13+ runtime permission
-    await _fln
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+      _isInitialized = true;
+      print('Notification service initialized successfully');
+    } catch (e) {
+      print('Failed to initialize notification service: $e');
+    }
+  }
+
+  Future<bool> requestNotificationPermission() async {
+    try {
+      // Request notification permission
+      final status = await Permission.notification.request();
+      
+      if (status.isGranted) {
+        print('Notification permission granted');
+        return true;
+      } else if (status.isDenied) {
+        print('Notification permission denied');
+        return false;
+      } else if (status.isPermanentlyDenied) {
+        print('Notification permission permanently denied');
+        // Open app settings if permanently denied
+        await openAppSettings();
+        return false;
+      }
+      return false;
+    } catch (e) {
+      print('Error requesting notification permission: $e');
+      return false;
+    }
   }
 
   Future<void> showFriendRequestNotification({
@@ -63,46 +88,77 @@ class FriendRequestNotificationService {
     String? receiverMobile,
     String? createdAtIso,
   }) async {
-    final androidDetails = AndroidNotificationDetails(
-      _channel.id,
-      _channel.name,
-      channelDescription: _channel.description,
-      importance: Importance.high,
-      priority: Priority.high,
-      category: AndroidNotificationCategory.message,
-      icon: 'ic_notification',
-    );
-    const iosDetails = DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true);
+    // Ensure service is initialized
+    if (!_isInitialized) {
+      print('Notification service not initialized');
+      return;
+    }
 
-    final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    // Request permission if not granted
+    final hasPermission = await requestNotificationPermission();
+    if (!hasPermission) {
+      print('Notification permission not granted');
+      return;
+    }
 
-    final payload = jsonEncode({
-      'name': name,
-      'mobile': mobile,
-      'receiver': receiverMobile,
-      'created_at': createdAtIso ?? DateTime.now().toIso8601String(),
-    });
+    try {
+      final androidDetails = AndroidNotificationDetails(
+        _channel.id,
+        _channel.name,
+        channelDescription: _channel.description,
+        importance: Importance.high,
+        priority: Priority.high,
+        category: AndroidNotificationCategory.message,
+        icon: 'ic_notification',
+      );
+      const iosDetails = DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true);
 
-    await _fln.show(
-      DateTime.now().millisecondsSinceEpoch % 100000,
-      'New friend request',
-      '$name • $mobile',
-      details,
-      payload: payload,
-    );
+      final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+      final payload = jsonEncode({
+        'name': name,
+        'mobile': mobile,
+        'receiver': receiverMobile,
+        'created_at': createdAtIso ?? DateTime.now().toIso8601String(),
+      });
+
+      await _fln.show(
+        DateTime.now().millisecondsSinceEpoch % 100000,
+        'New friend request',
+        '$name • $mobile',
+        details,
+        payload: payload,
+      );
+      
+      print('Notification shown successfully');
+    } catch (e) {
+      print('Error showing notification: $e');
+    }
   }
 
   void _openDashboard() {
     final key = _navigatorKey;
-    if (key == null) return;
+    if (key == null) {
+      print('Navigator key is null');
+      return;
+    }
+    
     final navigator = key.currentState;
-    if (navigator == null) return;
+    if (navigator == null) {
+      print('Navigator state is null');
+      return;
+    }
 
-    navigator.push(
-      MaterialPageRoute(
-        builder: (_) => const UserDashboard(),
-      ),
-    );
+    try {
+      print('Navigating to UserDashboard from notification');
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => const UserDashboard(),
+        ),
+      );
+    } catch (e) {
+      print('Error navigating to UserDashboard: $e');
+    }
   }
 }
 

@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'logic/create_local_db.dart';
 import 'logic/get_data.dart';
+import 'friend_request_notification_service.dart';
+
 
 class FirebaseSyncService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -170,6 +172,11 @@ class FirebaseSyncService {
 
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
+                  // Send Notification on drawer
+          await FriendRequestNotificationService().showFriendRequestNotification(
+            name: data['full_name'],
+            mobile: data['sender_mobile'],
+          );
         
         // Check if already exists in local database
         final List<Map<String, dynamic>> existingRequests = await db.query(
@@ -179,6 +186,7 @@ class FirebaseSyncService {
         );
 
         if (existingRequests.isEmpty) {
+
           // Insert into local database
           await db.insert('friend_requests', {
             'sender_mobile': data['sender_mobile'],
