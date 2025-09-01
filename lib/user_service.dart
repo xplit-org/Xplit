@@ -79,6 +79,8 @@ class UserService {
         'profile_picture': profilePicUrl,
         'upi_id': upi_id, // Store the actual UPI ID entered by user
         'user_creation': FieldValue.serverTimestamp(),
+        'to_get': 0,
+        'to_pay': 0,
       });
     } catch (e) {
       print("Error saving user data: $e");

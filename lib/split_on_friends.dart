@@ -322,6 +322,26 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
 
+        // For each friend (except current user), insert a payment request in their type_0 (owed_by_me) in Firebase
+        if (!isCurrentUser && amount > 0) {
+          try {
+            await FirebaseFirestore.instance
+                .collection('user_data')
+                .doc(friend.id)
+                .collection('type_0')
+                .add({
+                  'amount': amount,
+                  'split_time': currentTime,
+                  'split_by': currentUserMobile,
+                  'status': AppConstants.STATUS_UNPAID,
+                  'local_synced': false,
+                });
+            print('Payment request added to type_0 for ${friend.id}');
+          } catch (e) {
+            print('Warning: Failed to add payment request to type_0 for ${friend.id}: $e');
+          }
+        }
+
         splitOnRecords.add({
           AppConstants.COL_MOBILE_NO: friend.id,
           AppConstants.COL_AMOUNT: amount,

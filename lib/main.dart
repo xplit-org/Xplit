@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 import 'login_page.dart';
 import 'firebase_sync_service.dart';
 import 'friend_request_notification_service.dart';
+import 'expense_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,17 +34,20 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription? _friendRequestSubscription;
+  StreamSubscription? _expenseSyncSubscription;
 
   @override
   void initState() {
     super.initState();
     _initializeNotificationService();
     _startFriendRequestListener();
+    _startExpenseSyncListener();
   }
 
   @override
   void dispose() {
     _friendRequestSubscription?.cancel();
+    _expenseSyncSubscription?.cancel();
     super.dispose();
   }
 
@@ -65,9 +69,10 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initializeNotificationService() async {
     try {
       await FriendRequestNotificationService().initialize(navigatorKey: _navigatorKey);
-      print('Notification service initialized in main.dart');
+      await ExpenseNotificationService().initialize(navigatorKey: _navigatorKey);
+      print('Notification services initialized in main.dart');
     } catch (e) {
-      print('Failed to initialize notification service: $e');
+      print('Failed to initialize notification services: $e');
     }
   }
 
@@ -82,6 +87,19 @@ class _MyAppState extends State<MyApp> {
     );
     
     print('Friend request listener started successfully');
+  }
+
+  void _startExpenseSyncListener() {
+    print('💰 Starting expense sync listener in main.dart');
+    
+    _expenseSyncSubscription = FirebaseSyncService.startExpenseSyncListener().listen(
+      (_) {},
+      onError: (error) {
+        print('Error in expense sync listener: $error');
+      },
+    );
+    
+    print('Expense sync listener started successfully');
   }
 
 }

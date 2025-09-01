@@ -340,41 +340,47 @@ class GetData {
       Map<String, Map<String, dynamic>> totalAdjustedExpenses = {};
       String key = '';
       Map<String, dynamic> request = {};
+      
       // type=0 for OwedByMe and type=1 for OwedToMe
       void putRequest(int type, int index){
         if(type == 1){
-          key = owedToMe[index][AppConstants.COL_MOBILE_NO];
-          totalAdjustedExpenses[key]!['total_amount'] += owedToMe[index][AppConstants.COL_AMOUNT];
-          totalAdjustedExpenses[key]!['total_request'] += 1;
-          request = {
-            'type': 'type_1',
-            'user_data_id': owedToMe[index][AppConstants.COL_USER_DATA_ID],
-            'amount': owedToMe[index][AppConstants.COL_AMOUNT],
-            'split_time': owedToMe[index][AppConstants.COL_SPLIT_TIME],
-            'requested_by': 'Me',
-          };
-          totalAdjustedExpenses[key]!['request'].add(request);
+          key = owedToMe[index][AppConstants.COL_MOBILE_NO].toString();
+          if (totalAdjustedExpenses.containsKey(key)) {
+            totalAdjustedExpenses[key]!['total_amount'] += (owedToMe[index][AppConstants.COL_AMOUNT] as num? ?? 0.0);
+            totalAdjustedExpenses[key]!['total_request'] += 1;
+            request = {
+              'type': 'type_1',
+              'user_data_id': owedToMe[index][AppConstants.COL_USER_DATA_ID],
+              'amount': owedToMe[index][AppConstants.COL_AMOUNT],
+              'split_time': owedToMe[index][AppConstants.COL_SPLIT_TIME],
+              'requested_by': 'Me',
+            };
+            totalAdjustedExpenses[key]!['request'].add(request);
+          }
         }
         else if(type == 0){
-          key = owedByMe[index][AppConstants.COL_SPLIT_BY];
-          totalAdjustedExpenses[key]!['total_amount'] -= owedByMe[index][AppConstants.COL_AMOUNT];
-          totalAdjustedExpenses[key]!['total_request'] += 1;
-          request = {
-            'type': 'type_0',
-            'user_data_id': owedByMe[index][AppConstants.COL_ID],
-            'amount': owedByMe[index][AppConstants.COL_AMOUNT],
-            'split_time': owedByMe[index][AppConstants.COL_SPLIT_TIME],
-            'requested_by': totalAdjustedExpenses[key]!['full_name'],
-          };
-          totalAdjustedExpenses[key]!['request'].add(request);
+          key = owedByMe[index][AppConstants.COL_SPLIT_BY].toString();
+          if (totalAdjustedExpenses.containsKey(key)) {
+            totalAdjustedExpenses[key]!['total_amount'] -= (owedByMe[index][AppConstants.COL_AMOUNT] as num? ?? 0.0);
+            totalAdjustedExpenses[key]!['total_request'] += 1;
+            request = {
+              'type': 'type_0',
+              'user_data_id': owedByMe[index][AppConstants.COL_ID],
+              'amount': owedByMe[index][AppConstants.COL_AMOUNT],
+              'split_time': owedByMe[index][AppConstants.COL_SPLIT_TIME],
+              'requested_by': totalAdjustedExpenses[key]!['full_name'],
+            };
+            totalAdjustedExpenses[key]!['request'].add(request);
+          }
         }
       }
+      
       Future<void> initKey (int type, int index) async{
         if(type == 1){
-          key = owedToMe[index][AppConstants.COL_MOBILE_NO];
+          key = owedToMe[index][AppConstants.COL_MOBILE_NO].toString();
         }
         else if(type == 0){
-          key = owedByMe[index][AppConstants.COL_SPLIT_BY];
+          key = owedByMe[index][AppConstants.COL_SPLIT_BY].toString();
         }
         final friendData = await getFriendByMobile(key);
         List<Map<String, dynamic>> request = [];
@@ -382,7 +388,7 @@ class GetData {
         totalAdjustedExpenses[key] = {
           'full_name': friendData?['full_name'] ?? 'Unknown',
           'profile_picture': friendData?['profile_picture'] ?? 'assets/image 5.png',
-          'total_amount': 0,
+          'total_amount': 0.0,
           'total_request': 0,
           'request': request,
         };
@@ -394,10 +400,10 @@ class GetData {
       int j = 0; // index for owedByMe
       while (i < owedToMe.length && j < owedByMe.length) {
         // Both request for same friend
-        if(owedToMe[i][AppConstants.COL_MOBILE_NO] == owedByMe[j][AppConstants.COL_SPLIT_BY]) {          
+        if(owedToMe[i][AppConstants.COL_MOBILE_NO].toString() == owedByMe[j][AppConstants.COL_SPLIT_BY].toString()) {          
           // Put the request for older time first
           if(isTimeBefore(owedToMe[i][AppConstants.COL_SPLIT_TIME], owedByMe[j][AppConstants.COL_SPLIT_TIME])) {
-            key = owedToMe[i][AppConstants.COL_MOBILE_NO];
+            key = owedToMe[i][AppConstants.COL_MOBILE_NO].toString();
             // Check if friend had a record in totalAdjustedExpenses
             if(!totalAdjustedExpenses.containsKey(key)) {
               await initKey(1, i);
@@ -406,7 +412,7 @@ class GetData {
             i++;
           }
           else {
-            key = owedByMe[j][AppConstants.COL_SPLIT_BY];
+            key = owedByMe[j][AppConstants.COL_SPLIT_BY].toString();
             // Check if friend had a record in totalAdjustedExpenses
             if(!totalAdjustedExpenses.containsKey(key)) {
               await initKey(0, j);
@@ -415,8 +421,8 @@ class GetData {
             j++;
           }
         // Both request for different friend
-        } else if (owedToMe[i][AppConstants.COL_MOBILE_NO] < owedByMe[j][AppConstants.COL_SPLIT_BY]) {
-          key = owedToMe[i][AppConstants.COL_MOBILE_NO];
+        } else if (owedToMe[i][AppConstants.COL_MOBILE_NO].toString().compareTo(owedByMe[j][AppConstants.COL_SPLIT_BY].toString()) < 0) {
+          key = owedToMe[i][AppConstants.COL_MOBILE_NO].toString();
           // Check if friend had a record in totalAdjustedExpenses
           // Put the request for ith
           if(totalAdjustedExpenses.containsKey(key)){
@@ -429,7 +435,7 @@ class GetData {
           i++;
         // Both request for different friend
         }else{
-          key = owedByMe[j][AppConstants.COL_SPLIT_BY];
+          key = owedByMe[j][AppConstants.COL_SPLIT_BY].toString();
           // Check if friend had a record in totalAdjustedExpenses
           // Put the request for jth
           if(totalAdjustedExpenses.containsKey(key)){
@@ -444,7 +450,7 @@ class GetData {
       }
       // put remaining data
       while (i < owedToMe.length){
-        key = owedToMe[i][AppConstants.COL_MOBILE_NO];
+        key = owedToMe[i][AppConstants.COL_MOBILE_NO].toString();
         // Check if friend had a record in totalAdjustedExpenses
         // Put the request for ith
         if(totalAdjustedExpenses.containsKey(key)){
@@ -457,7 +463,7 @@ class GetData {
         i++;
       }
       while (j < owedByMe.length){
-        key = owedByMe[j][AppConstants.COL_SPLIT_BY];
+        key = owedByMe[j][AppConstants.COL_SPLIT_BY].toString();
         // Check if friend had a record in totalAdjustedExpenses
         // Put the request for jth
         if(totalAdjustedExpenses.containsKey(key)){
