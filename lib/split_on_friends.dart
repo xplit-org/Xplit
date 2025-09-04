@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'select_friends.dart';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'logic/get_data.dart';
 import 'logic/create_local_db.dart';
 import 'package:sqflite/sqflite.dart';
@@ -296,12 +297,18 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
+      double update_to_get = 0;
+      List<Map<String, dynamic>> splitOnRecords = [];
+
       // 2. Insert individual split records into split_on table
       for (var friend in selectedFriends) {
         final amount = double.tryParse(amountControllers[friend.id]?.text ?? '0') ?? 0.0;
         
         // Check if this friend is the current user
         final isCurrentUser = friend.id == currentUserMobile;
+        if(!isCurrentUser){
+          update_to_get += amount;
+        }
 
         await db.insert(
           AppConstants.TABLE_SPLIT_ON,
@@ -314,6 +321,79 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+
+        // For each friend (except current user), insert a payment request in their type_0 (owed_by_me) in Firebase
+        if (!isCurrentUser && amount > 0) {
+          try {
+            await FirebaseFirestore.instance
+                .collection('user_data')
+                .doc(friend.id)
+                .collection('type_0')
+                .add({
+                  'amount': amount,
+                  'split_time': currentTime,
+                  'split_by': currentUserMobile,
+                  'status': AppConstants.STATUS_UNPAID,
+                  'local_synced': false,
+                });
+            print('Payment request added to type_0 for ${friend.id}');
+          } catch (e) {
+            print('Warning: Failed to add payment request to type_0 for ${friend.id}: $e');
+          }
+        }
+
+        splitOnRecords.add({
+          AppConstants.COL_MOBILE_NO: friend.id,
+          AppConstants.COL_AMOUNT: amount,
+          AppConstants.COL_STATUS: isCurrentUser ? AppConstants.STATUS_PAID : AppConstants.STATUS_UNPAID, // Current user is marked as paid
+          AppConstants.COL_PAID_TIME: isCurrentUser ? currentTime : null,
+        });
+
+      }
+
+      // 1.1. Also save to Firebase user_data collection
+      try {
+        await FirebaseFirestore.instance
+            .collection('user_data')
+            .doc(currentUserMobile)
+            .collection('type_1')
+            .doc(splitId)
+            .set({
+              'amount': widget.amount,
+              'split_time': currentTime,
+                'splitted_on': splitOnRecords,
+        });
+        print('Firebase user_data updated successfully');
+      } catch (firebaseError) {
+        print('Warning: Firebase user_data update failed: $firebaseError');
+        // Continue with local save even if Firebase fails
+      }
+
+      // Update to_get
+      if(update_to_get > 0){
+        final userProfile = await GetData.getUserProfile(currentUserMobile);
+        update_to_get += userProfile['to_get'];
+        await db.update(
+          'user',
+          {
+            'to_get': update_to_get,
+          },
+          where: 'mobile_number = ?',
+          whereArgs: [currentUserMobile],
+        );
+
+        // 2.2. Also update Firebase user profile
+        try {
+          await FirebaseFirestore.instance
+              .collection('user_details')
+              .doc(currentUserMobile)
+              .update({
+                'to_get': update_to_get,
+          });
+          print('Firebase user profile updated successfully');
+        } catch (firebaseError) {
+          print('Warning: Firebase user profile update failed: $firebaseError');
+        }
       }
 
       // 3. If current user is not in selected friends, add them with their share as paid
@@ -409,14 +489,14 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
       return;
     }
 
-          // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Saving split...'),
-          backgroundColor: Colors.blue,
-          duration: Duration(seconds: 1),
-        ),
-      );
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Saving split...'),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 1),
+      ),
+    );
 
     // Save to database
     await _saveSplitToDatabase();

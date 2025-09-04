@@ -2,6 +2,9 @@ import 'package:expenser/logic/create_local_db.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:expenser/logic/get_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FriendsRequestPage extends StatefulWidget {
   final List<Map<String, dynamic>> pendingRequests;
@@ -109,6 +112,39 @@ class _FriendsRequestPageState extends State<FriendsRequestPage> {
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
+      // Update the status in Firestore and add to friends collection
+      try {
+        // Assuming you have access to FirebaseFirestore and current user's mobile number
+        final firestore = FirebaseFirestore.instance;
+        final currentUserMobile = FirebaseAuth.instance.currentUser?.phoneNumber;
+        final currentUser = await GetData.getUserProfile(currentUserMobile!);
+        // Get the accepted request details
+        final senderMobile = requestRows.first['sender_mobile'];
+        // Update the status in the friend_requests subcollection for the current user
+        await firestore
+            .collection('user_data')
+            .doc(senderMobile)
+            .collection('friends_data')
+            .doc(currentUserMobile)
+            .set({
+              'full_name': currentUser['full_name'],
+              'profile_picture': currentUser['profile_picture'],
+              'upi_id': currentUser['upi_id'],
+        });
+
+        await firestore
+            .collection('user_data')
+            .doc(currentUserMobile)
+            .collection('friends_data')
+            .doc(senderMobile)
+            .set({
+              'full_name': request['full_name'],
+              'profile_picture': request['profile_picture'],
+              'upi_id': request['upi_id'],
+        });
+      } catch (e) {
+        print('Error updating Firestore friend status: $e');
+      }
     }
 
     setState(() {

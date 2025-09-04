@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_code_tools/qr_code_tools.dart';
+import 'package:sqflite/sqflite.dart'; // Add this import
 import 'user_service.dart';
 import 'logic/create_local_db.dart';
 import 'home_page.dart';
@@ -708,40 +709,44 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       profilePicUrl = 'default';
     }
 
-    // Always save user data regardless of profile picture status
-    await userService.saveUserDetails(
-      fullName: fullName,
-      mobileNumber: '+91${widget.mobileNumber}',
-      upi_id: upiId, // Using UPI ID instead of recovery email
-      profilePicUrl: profilePicUrl ?? 'default',
-    );
-
-    Navigator.pop(context); // Close the loading dialog
-
-    // Initialize local database and sync data
     try {
-      print(
-        'Initializing local database and syncing data for: ${widget.mobileNumber}',
+      // 1. Save to Firebase first
+      await userService.saveUserDetails(
+        fullName: fullName,
+        mobileNumber: '+91${widget.mobileNumber}',
+        upi_id: upiId,
+        profilePicUrl: profilePicUrl ?? 'assets/image 5.png',
       );
 
-      // Initialize the local database
+      // 2. Initialize local database
       final db = await LocalDB.database;
 
-      // Sync user data from Firebase
+      // 3. Insert user data directly to local database (instead of syncing from Firebase)
+      await db.insert('user', {
+        'mobile_number': widget.mobileNumber,
+        'full_name': fullName,
+        'upi_id': upiId,
+        'profile_picture': profilePicUrl ?? 'assets/image 5.png',
+        'user_creation': DateTime.now().toIso8601String(),
+        'last_login': DateTime.now().toIso8601String(),
+        'to_get': 0.0,
+        'to_pay': 0.0,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+      // 4. Now sync other data from Firebase (friends, existing expenses, etc.)
       await LocalDB().syncUserData(widget.mobileNumber);
+
+      Navigator.pop(context); // Close loading dialog
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _image != null
-                ? 'Account created successfully! Data synced locally.'
-                : 'Account created successfully! Data synced locally.',
-          ),
+        const SnackBar(
+          content: Text('Account created successfully! Data synced locally.'),
           backgroundColor: Colors.green,
         ),
       );
 
+      // Navigate to HomePage
       Navigator.push(
         context,
         PageRouteBuilder(
@@ -761,17 +766,15 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
           transitionDuration: const Duration(milliseconds: 300),
         ),
       );
+
     } catch (e) {
-      print('Error syncing data: $e');
-      // Show success message even if sync fails
+      Navigator.pop(context); // Close loading dialog
+      print('Error creating account: $e');
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _image != null
-                ? 'Account created successfully with profile picture!'
-                : 'Account created successfully!',
-          ),
-          backgroundColor: Colors.green,
+          content: Text('Error creating account: $e'),
+          backgroundColor: Colors.red,
         ),
       );
     }

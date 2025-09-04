@@ -274,5 +274,24 @@ class LocalDB {
     }
   }
 
+  Future<void> createUserFromForm({
+    required String mobileNumber,
+    required String fullName,
+    required String upiId,
+    required String profilePicture,
+  }) async {
+    final db = await database;
+    
+    await db.insert('user', {
+      'mobile_number': mobileNumber,
+      'full_name': fullName,
+      'upi_id': upiId,
+      'profile_picture': profilePicture,
+      'user_creation': DateTime.now().toIso8601String(),
+      'last_login': DateTime.now().toIso8601String(),
+      'to_get': 0.0,
+      'to_pay': 0.0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
   
 }

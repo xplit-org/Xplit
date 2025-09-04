@@ -1,16 +1,13 @@
 import 'dart:async';
 import 'package:expenser/home_page.dart';
-import 'package:expenser/otp_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'login_page.dart';
-import 'home_page.dart';
-import 'user_dashboard.dart';
-import 'otp_page.dart';
 import 'firebase_sync_service.dart';
 import 'friend_request_notification_service.dart';
+import 'expense_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,13 +24,38 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription? _friendRequestSubscription;
+  StreamSubscription? _expenseSyncSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeNotificationService();
+    _startFriendRequestListener();
+    _startExpenseSyncListener();
+  }
+
+  @override
+  void dispose() {
+    _friendRequestSubscription?.cancel();
+    _expenseSyncSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Expenser',
+      navigatorKey: _navigatorKey,
+      title: 'Xplit',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
@@ -43,6 +65,43 @@ class MyApp extends StatelessWidget {
       home: const AuthWrapper(),
     );
   }
+
+  Future<void> _initializeNotificationService() async {
+    try {
+      await FriendRequestNotificationService().initialize(navigatorKey: _navigatorKey);
+      await ExpenseNotificationService().initialize(navigatorKey: _navigatorKey);
+      print('Notification services initialized in main.dart');
+    } catch (e) {
+      print('Failed to initialize notification services: $e');
+    }
+  }
+
+  void _startFriendRequestListener() {
+    print('🔍 Starting friend request listener in main.dart');
+    
+    _friendRequestSubscription = FirebaseSyncService.startFriendRequestListener().listen(
+      (_) {},
+      onError: (error) {
+        print('Error in friend request listener: $error');
+      },
+    );
+    
+    print('Friend request listener started successfully');
+  }
+
+  void _startExpenseSyncListener() {
+    print('💰 Starting expense sync listener in main.dart');
+    
+    _expenseSyncSubscription = FirebaseSyncService.startExpenseSyncListener().listen(
+      (_) {},
+      onError: (error) {
+        print('Error in expense sync listener: $error');
+      },
+    );
+    
+    print('Expense sync listener started successfully');
+  }
+
 }
 
 class AuthWrapper extends StatelessWidget {
@@ -65,7 +124,7 @@ class AuthWrapper extends StatelessWidget {
         // If user is logged in, go to home page
         if (snapshot.hasData && snapshot.data != null) {
           print('User already logged in: ${snapshot.data!.phoneNumber}');
-          return HomePageWithFriendRequestListener();
+          return const HomePage();
         }
         
         // If user is not logged in, go to login page
@@ -73,49 +132,5 @@ class AuthWrapper extends StatelessWidget {
         return const LoginPage();
       },
     );
-  }
-}
-
-class HomePageWithFriendRequestListener extends StatefulWidget {
-  const HomePageWithFriendRequestListener({super.key});
-
-  @override
-  State<HomePageWithFriendRequestListener> createState() => _HomePageWithFriendRequestListenerState();
-}
-
-class _HomePageWithFriendRequestListenerState extends State<HomePageWithFriendRequestListener> {
-  StreamSubscription? _friendRequestSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _startFriendRequestListener();
-  }
-
-  @override
-  void dispose() {
-    _friendRequestSubscription?.cancel();
-    super.dispose();
-  }
-
-  void _startFriendRequestListener() {
-    print('🔍 Starting friend request listener in main.dart');
-    
-    _friendRequestSubscription = FirebaseSyncService.startFriendRequestListener().listen(
-      (_) {
-        // New friend request received - you can show notification here
-        
-      },
-      onError: (error) {
-        print('Error in friend request listener: $error');
-      },
-    );
-    
-    print('Friend request listener started successfully');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const HomePage();
   }
 }
