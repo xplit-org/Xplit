@@ -262,16 +262,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.notification_add_outlined),
-                  tooltip: 'Test friend request notification',
-                  onPressed: () async {
-                    await FriendRequestNotificationService().showFriendRequestNotification(
-                      name: 'Test User',
-                      mobile: '+910000000000',
-                    );
-                  },
-                ),
+                
               ],
             ),
           ),

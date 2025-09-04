@@ -44,6 +44,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -170,19 +171,23 @@ class _SignUpPageState extends State<SignUpPage> {
         ],
       ),
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          _buildHeaderSection(),
-          _buildMobileInputField(),
-          const SizedBox(height: 40),
-          _buildContinueButton(),
-          const SizedBox(height: 30),
-          _buildLoginLink(),
-          const Spacer(),
-          _buildTermsAndConditions(),
-        ],
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            _buildHeaderSection(),
+            _buildMobileInputField(),
+            const SizedBox(height: 40),
+            _buildContinueButton(),
+            const SizedBox(height: 30),
+            _buildLoginLink(),
+            const SizedBox(height: 40),
+            _buildTermsAndConditions(),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -320,10 +325,14 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildContinueButton() {
+    bool isMobileValid = _mobileController.text.isNotEmpty && 
+                        _mobileController.text.length == 10;
+
+    bool isButtonDisabled = _isLoading || !isMobileValid;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : () => _handleContinueButton(),
+        onPressed: isButtonDisabled ? null : () => _handleContinueButton(),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2196F3),
           foregroundColor: Colors.white,
@@ -341,9 +350,13 @@ class _SignUpPageState extends State<SignUpPage> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
+            : Text(
                 'Continue',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: isButtonDisabled ? Colors.grey.shade600 : Colors.white,
+                ),
               ),
       ),
     );

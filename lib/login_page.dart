@@ -40,6 +40,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -110,18 +111,22 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          _buildHeaderSection(),
-          _buildMobileInputField(),
-          const SizedBox(height: 30),
-          _buildContinueButton(),
-          const Spacer(),
-          _buildSignUpLink(),
-          const SizedBox(height: 20),
-        ],
+
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            _buildHeaderSection(),
+            _buildMobileInputField(),
+            const SizedBox(height: 30),
+            _buildContinueButton(),
+            const SizedBox(height: 40),
+            _buildSignUpLink(),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

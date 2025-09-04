@@ -54,6 +54,7 @@ class _OtpPageState extends State<OtpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -116,19 +117,23 @@ class _OtpPageState extends State<OtpPage> {
         ],
       ),
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          _buildHeaderSection(),
-          _buildOtpInputSection(),
-          const SizedBox(height: 30),
-          _buildVerifyButton(),
-          const SizedBox(height: 40),
-          _buildResendOtpSection(),
-          const Spacer(),
-          _buildBackToLink(),
-        ],
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            _buildHeaderSection(),
+            _buildOtpInputSection(),
+            const SizedBox(height: 30),
+            _buildVerifyButton(),
+            const SizedBox(height: 40),
+            _buildResendOtpSection(),
+            const SizedBox(height: 40),
+            _buildBackToLink(),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

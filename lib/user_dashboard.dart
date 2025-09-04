@@ -64,10 +64,12 @@ class _UserDashboardState extends State<UserDashboard> {
     _loadPendingRequests();
   }
 
- 
-
   /// Show SnackBar within modal context
-  void _showModalSnackBar(BuildContext context, String message, Color backgroundColor) {
+  void _showModalSnackBar(
+    BuildContext context,
+    String message,
+    Color backgroundColor,
+  ) {
     // Use Overlay to show message within the modal
     late OverlayEntry overlayEntry;
     overlayEntry = OverlayEntry(
@@ -95,10 +97,7 @@ class _UserDashboardState extends State<UserDashboard> {
                 Expanded(
                   child: Text(
                     message,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ),
                 IconButton(
@@ -115,7 +114,7 @@ class _UserDashboardState extends State<UserDashboard> {
     );
 
     Overlay.of(context).insert(overlayEntry);
-    
+
     // Auto-dismiss after 2 seconds
     Future.delayed(const Duration(seconds: 2), () {
       overlayEntry.remove();
@@ -585,19 +584,29 @@ class _UserDashboardState extends State<UserDashboard> {
                                                 'Sender: $_currentUserMobile, Receiver: $phone',
                                               );
                                               // Check if the user exists in Firebase before proceeding
-                                              final userExists = await FirebaseSyncService.checkUserExistsInFirebase(phone);
+                                              final userExists =
+                                                  await FirebaseSyncService.checkUserExistsInFirebase(
+                                                    phone,
+                                                  );
                                               if (!userExists) {
-                                                _showModalSnackBar(context, 'This number is not registered in the app.', Colors.red);
+                                                _showModalSnackBar(
+                                                  context,
+                                                  'This number is not registered in the app.',
+                                                  Colors.red,
+                                                );
                                                 return;
                                               }
                                               final result = await db.insert(
                                                 'friend_requests',
                                                 {
-                                                  'sender_mobile':_currentUserMobile,
+                                                  'sender_mobile':
+                                                      _currentUserMobile,
                                                   'receiver_mobile': phone,
-                                                  'full_name':contact.displayName,
+                                                  'full_name':
+                                                      contact.displayName,
                                                   'status': 'pending',
-                                                  'created_at': DateTime.now().toIso8601String(),
+                                                  'created_at': DateTime.now()
+                                                      .toIso8601String(),
                                                 },
                                                 conflictAlgorithm:
                                                     ConflictAlgorithm.ignore,
@@ -605,28 +614,45 @@ class _UserDashboardState extends State<UserDashboard> {
                                               print('Insert result: $result');
 
                                               // Sync to Firebase for real-time notifications
-                                              final syncSuccess = await FirebaseSyncService.syncFriendRequestToFirebase(
-                                                sender_mobile: _currentUserMobile!,
-                                                receiver_mobile: phone,
-                                                full_name: contact.displayName,
-                                                id: result.toString(),
-                                                created_at: DateTime.now().toIso8601String(),
-                                              );
+                                              final syncSuccess =
+                                                  await FirebaseSyncService.syncFriendRequestToFirebase(
+                                                    sender_mobile:
+                                                        _currentUserMobile!,
+                                                    receiver_mobile: phone,
+                                                    full_name:
+                                                        contact.displayName,
+                                                    id: result.toString(),
+                                                    created_at: DateTime.now()
+                                                        .toIso8601String(),
+                                                  );
 
                                               if (syncSuccess) {
-                                                print('Friend request synced to Firebase successfully');
+                                                print(
+                                                  'Friend request synced to Firebase successfully',
+                                                );
                                               } else {
-                                                print('Friend request saved locally but Firebase sync failed');
+                                                print(
+                                                  'Friend request saved locally but Firebase sync failed',
+                                                );
                                               }
 
                                               // update modal state so UI changes immediately
                                               setModalState(() {
-                                                requestedMobileNumbers[phone] = 'Requested'; // add this number to pending map
+                                                requestedMobileNumbers[phone] =
+                                                    'Requested'; // add this number to pending map
                                               });
 
-                                              _showModalSnackBar(context, 'Friend request sent to $phone', Colors.green);
+                                              _showModalSnackBar(
+                                                context,
+                                                'Friend request sent to $phone',
+                                                Colors.green,
+                                              );
                                             } catch (e) {
-                                              _showModalSnackBar(context, 'Error sending request: $e', Colors.red);
+                                              _showModalSnackBar(
+                                                context,
+                                                'Error sending request: $e',
+                                                Colors.red,
+                                              );
                                             }
                                           },
 
@@ -634,16 +660,24 @@ class _UserDashboardState extends State<UserDashboard> {
                                       backgroundColor: isRequestPending
                                           ? Colors.grey
                                           : shouldDisableButton
-                                              ? Colors.grey
-                                              : Colors.white,
+                                          ? Colors.grey
+                                          : Colors.white,
                                       elevation: isRequestPending ? 0 : 1,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       minimumSize: const Size(40, 40),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(20),
-                                        side: isRequestPending || shouldDisableButton
+                                        side:
+                                            isRequestPending ||
+                                                shouldDisableButton
                                             ? BorderSide.none
-                                            : const BorderSide(color: Colors.blue, width: 1),
+                                            : const BorderSide(
+                                                color: Colors.blue,
+                                                width: 1,
+                                              ),
                                       ),
                                     ),
                                     child: isRequestPending
@@ -652,17 +686,17 @@ class _UserDashboardState extends State<UserDashboard> {
                                             size: 24,
                                             color: Colors.black,
                                           )
-                                        : isAlreadyFriend 
-                                            ? const Icon(
-                                                Icons.check,
-                                                size: 24,
-                                                color: Colors.black,
-                                              )
-                                            : Image.asset(
-                                                'assets/addIcon.png',
-                                                width: 24,
-                                                height: 24,
-                                              ),
+                                        : isAlreadyFriend
+                                        ? const Icon(
+                                            Icons.check,
+                                            size: 24,
+                                            color: Colors.black,
+                                          )
+                                        : Image.asset(
+                                            'assets/addIcon.png',
+                                            width: 24,
+                                            height: 24,
+                                          ),
                                   ),
                                 );
                               },
@@ -783,7 +817,10 @@ class _UserDashboardState extends State<UserDashboard> {
           const SizedBox(width: 16),
           const Text(
             AppConstants.PROFILE_TITLE,
-            style: TextStyle(fontSize: AppConstants.FONT_XXLARGE, color: Colors.black87),
+            style: TextStyle(
+              fontSize: AppConstants.FONT_XXLARGE,
+              color: Colors.black87,
+            ),
           ),
           const Spacer(),
           Stack(
@@ -794,7 +831,8 @@ class _UserDashboardState extends State<UserDashboard> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => FriendsRequestPage(pendingRequests: _pendingRequests),
+                      builder: (context) =>
+                          FriendsRequestPage(pendingRequests: _pendingRequests),
                     ),
                   );
                   // Refresh the UI when returning from friends request page
@@ -844,8 +882,8 @@ class _UserDashboardState extends State<UserDashboard> {
         children: [
           // Profile Picture (Left)
           Container(
-            width: 100,
-            height: 100,
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(shape: BoxShape.circle),
             child: ClipOval(
               child: Builder(
@@ -855,7 +893,10 @@ class _UserDashboardState extends State<UserDashboard> {
                   );
                   return imageProvider != null
                       ? Image(image: imageProvider, fit: BoxFit.cover)
-                      : Image.asset(AppConstants.ASSET_PROFILE_PIC, fit: BoxFit.cover);
+                      : Image.asset(
+                          AppConstants.ASSET_PROFILE_PIC,
+                          fit: BoxFit.cover,
+                        );
                 },
               ),
             ),
@@ -881,45 +922,68 @@ class _UserDashboardState extends State<UserDashboard> {
                 const SizedBox(height: 12),
 
                 // UPI ID
-                Row(
-                  children: [
-                    const SizedBox(width: 8),
-                    const Text(
-                      'UPI: ',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+               // UPI ID Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // UPI Icon
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4), // lift icon slightly
+                    child: Image.asset(
+                      'assets/upi_icon.png',
+                      height: 24,
+                      width: 24,
                     ),
-                    Expanded(
-                      child: Text(
-                        _userData?['upi_id'] ?? AppConstants.DEFAULT_UPI_ID,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 10),
 
-                const SizedBox(height: 8),
-
-                // Mobile Number
-                Row(
-                  children: [
-                    const Icon(Icons.phone, color: Colors.blue, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      '+91 ${_userData?['mobile_number'] ?? AppConstants.DEFAULT_MOBILE}',
+                  // UPI ID Text (wraps if long)
+                  Expanded(
+                    child: Text(
+                      _userData?['upi_id'] ?? AppConstants.DEFAULT_UPI_ID,
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.black87,
                       ),
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+
+                  // Copy button
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 20, color: Colors.grey),
+                    onPressed: () {
+                      final upiId = _userData?['upi_id'] ?? AppConstants.DEFAULT_UPI_ID;
+                      Clipboard.setData(ClipboardData(text: upiId));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('UPI ID copied: $upiId')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // Mobile Number Row
+              Row(
+                children: [
+                  const Icon(Icons.phone, color: Colors.blue, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_userData?['mobile_number'] ?? AppConstants.DEFAULT_MOBILE}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
+      ],
       ),
     );
   }
@@ -1016,7 +1080,10 @@ class _UserDashboardState extends State<UserDashboard> {
                   Text(
                     AppConstants.LABEL_WAIT_LOADING_PROFILE,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: AppConstants.FONT_LARGE, color: Colors.grey[500]),
+                    style: TextStyle(
+                      fontSize: AppConstants.FONT_LARGE,
+                      color: Colors.grey[500],
+                    ),
                   ),
                 ],
               ),

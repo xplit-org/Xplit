@@ -244,17 +244,18 @@ class _OwedByMeExpensesPageState extends State<OwedByMeExpensesPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Split request",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
+                // First line: Split Request + Date
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Text(
+                      request["type"] == "type_1" ? "Split request" : "Payment request",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
                     Text(
                       request["date"],
                       style: TextStyle(
@@ -262,36 +263,36 @@ class _OwedByMeExpensesPageState extends State<OwedByMeExpensesPage> {
                         color: Colors.grey[600],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[600],
-                        shape: BoxShape.circle,
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // Second line: Requested by + Amount
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Requested by you",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      "Requested by you",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
+                      "₹${request["amount"].toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
                       ),
                     ),
                   ],
                 ),
               ],
-            ),
-          ),
-          
-          // Amount
-          Text(
-            "₹${request["amount"].toStringAsFixed(2)}",
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.red,
             ),
           ),
         ],
