@@ -1,14 +1,14 @@
+import 'package:expenser/core/utils.dart';
 import 'package:flutter/material.dart';
+import 'package:expenser/core/app_constants.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'logic/get_data.dart';
-import 'constants/app_constants.dart';
-import 'friends_request_page.dart';
+import 'package:expenser/core/get_local_data.dart';
+import 'friends_request_notification_screen.dart';
 import 'package:sqflite/sqflite.dart';
-import 'logic/create_local_db.dart';
-import 'firebase_sync_service.dart';
+import 'package:expenser/models/create_local_db.dart';
+import 'package:expenser/services/firebase_sync_service.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -18,40 +18,6 @@ class UserDashboard extends StatefulWidget {
 }
 
 class _UserDashboardState extends State<UserDashboard> {
-  // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {
-    if (profilePicture == null || profilePicture.isEmpty) {
-      print('Profile picture is null or empty');
-      return null;
-    }
-
-    // Check if it's a base64 image
-    if (profilePicture.startsWith('data:image/')) {
-      try {
-        // Extract base64 data from the data URL
-        final base64Data = profilePicture.split(',')[1];
-        final bytes = base64Decode(base64Data);
-        print('Successfully created MemoryImage from base64');
-        return MemoryImage(bytes);
-      } catch (e) {
-        print('Error decoding base64 image: $e');
-        return null;
-      }
-    }
-
-    // Check if it's a network URL
-    if (profilePicture.startsWith('http://') ||
-        profilePicture.startsWith('https://')) {
-      return NetworkImage(profilePicture);
-    }
-
-    // If it's a local asset path
-    if (profilePicture.startsWith('assets/')) {
-      return AssetImage(profilePicture);
-    }
-    return null;
-  }
-
   Map<String, dynamic> _userData = {};
   bool _isLoading = true;
   String? _currentUserMobile;
@@ -86,7 +52,7 @@ class _UserDashboardState extends State<UserDashboard> {
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black,
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -128,7 +94,7 @@ class _UserDashboardState extends State<UserDashboard> {
       _currentUserMobile = user?.phoneNumber;
       if (_currentUserMobile != null) {
         // Load all data
-        final userProfile = await GetData.getUserProfile(_currentUserMobile!);
+        final userProfile = await GetLocalData.getUserProfile();
 
         setState(() {
           _userData = userProfile;
@@ -149,7 +115,7 @@ class _UserDashboardState extends State<UserDashboard> {
 
   Future<void> _loadPendingRequests() async {
     try {
-      final pending = await GetData.getPendingFriendRequests();
+      final pending = await GetLocalData.getPendingFriendRequests();
       setState(() {
         _pendingRequests = pending;
       });
@@ -383,9 +349,8 @@ class _UserDashboardState extends State<UserDashboard> {
       List<Contact> filteredContacts = List.from(contacts);
       final TextEditingController searchController = TextEditingController();
       final FocusNode searchFocusNode = FocusNode();
-      final List<Map<String, dynamic>> friendsList =
-          await GetData.getFriendsList();
-      final List<String> requestedMobile = await GetData.getRequestedMobile(
+      final List<Map<String, dynamic>> friendsList = await GetLocalData.getFriendsList();
+      final List<String> requestedMobile = await GetLocalData.getRequestedMobile(
         _currentUserMobile!,
       );
       print('Friends List: $friendsList');
@@ -407,13 +372,6 @@ class _UserDashboardState extends State<UserDashboard> {
       final Map<String, String> requestedMobileNumbers = Map.fromEntries(
         requestedMobile.map((mobile) => MapEntry(mobile, 'Requested')),
       );
-
-      // 3. Merge both maps into one
-      final Map<String, String> combinedMap = {}
-        ..addAll(friendMobileNumbers)
-        ..addAll(requestedMobileNumbers);
-
-      // print('Combined Map: $combinedMap');
 
       print('Friend mobile numbers: $friendMobileNumbers');
       print('Requested mobile numbers: $requestedMobileNumbers');
@@ -693,7 +651,7 @@ class _UserDashboardState extends State<UserDashboard> {
                                             color: Colors.black,
                                           )
                                         : Image.asset(
-                                            'assets/addIcon.png',
+                                            AppConstants.ASSET_ADD_FRIEND,
                                             width: 24,
                                             height: 24,
                                           ),
@@ -747,6 +705,7 @@ class _UserDashboardState extends State<UserDashboard> {
     if (shouldLogout == true) {
       try {
         await FirebaseAuth.instance.signOut();
+        await LocalDB.clearDatabase();
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       } catch (e) {
         print('Error logging out: $e');
@@ -888,13 +847,13 @@ class _UserDashboardState extends State<UserDashboard> {
             child: ClipOval(
               child: Builder(
                 builder: (context) {
-                  final imageProvider = _getProfileImageProvider(
+                  final imageProvider = Utils.getProfileImageProvider(
                     _userData["profile_picture"],
                   );
                   return imageProvider != null
                       ? Image(image: imageProvider, fit: BoxFit.cover)
                       : Image.asset(
-                          AppConstants.ASSET_PROFILE_PIC,
+                          AppConstants.ASSET_DEFAULT_PROFILE_PIC,
                           fit: BoxFit.cover,
                         );
                 },
@@ -911,7 +870,7 @@ class _UserDashboardState extends State<UserDashboard> {
               children: [
                 // Name
                 Text(
-                  _userData?['full_name'] ?? AppConstants.DEFAULT_USER_NAME,
+                  _userData['full_name'] ?? AppConstants.DEFAULT_USER_NAME,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -930,7 +889,7 @@ class _UserDashboardState extends State<UserDashboard> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4), // lift icon slightly
                     child: Image.asset(
-                      'assets/upi_icon.png',
+                      AppConstants.ASSET_UPI_ICON,
                       height: 24,
                       width: 24,
                     ),
@@ -940,7 +899,7 @@ class _UserDashboardState extends State<UserDashboard> {
                   // UPI ID Text (wraps if long)
                   Expanded(
                     child: Text(
-                      _userData?['upi_id'] ?? AppConstants.DEFAULT_UPI_ID,
+                      _userData['upi_id'] ?? AppConstants.DEFAULT_UPI_ID,
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.black87,
@@ -954,7 +913,7 @@ class _UserDashboardState extends State<UserDashboard> {
                   IconButton(
                     icon: const Icon(Icons.copy, size: 20, color: Colors.grey),
                     onPressed: () {
-                      final upiId = _userData?['upi_id'] ?? AppConstants.DEFAULT_UPI_ID;
+                      final upiId = _userData['upi_id'] ?? AppConstants.DEFAULT_UPI_ID;
                       Clipboard.setData(ClipboardData(text: upiId));
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('UPI ID copied: $upiId')),
@@ -972,7 +931,7 @@ class _UserDashboardState extends State<UserDashboard> {
                   const Icon(Icons.phone, color: Colors.blue, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    '${_userData?['mobile_number'] ?? AppConstants.DEFAULT_MOBILE}',
+                    '${_userData['mobile_number'] ?? AppConstants.DEFAULT_MOBILE}',
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.black87,
@@ -1049,48 +1008,6 @@ class _UserDashboardState extends State<UserDashboard> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildNoDataUI() {
-    return Column(
-      children: [
-        // Header Section
-        _buildHeader(),
-
-        // No Data Section
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.person_off, size: 80, color: Colors.grey[400]),
-                  const SizedBox(height: 20),
-                  Text(
-                    AppConstants.LABEL_LOADING_PROFILE,
-                    style: TextStyle(
-                      fontSize: AppConstants.FONT_XXLARGE,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    AppConstants.LABEL_WAIT_LOADING_PROFILE,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: AppConstants.FONT_LARGE,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

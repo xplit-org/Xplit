@@ -1,9 +1,9 @@
-import 'package:expenser/logic/create_local_db.dart';
+import 'package:expenser/core/utils.dart';
+import 'package:expenser/models/create_local_db.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:expenser/logic/get_data.dart';
+import 'package:expenser/core/get_local_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class FriendsRequestPage extends StatefulWidget {
@@ -25,40 +25,6 @@ class FriendsRequestPage extends StatefulWidget {
 
 class _FriendsRequestPageState extends State<FriendsRequestPage> {
   static List<Map<String, dynamic>> _friendRequests = [];
-  // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {
-    if (profilePicture == null || profilePicture.isEmpty) {
-      print('Profile picture is null or empty');
-      return null;
-    }
-
-    // Check if it's a base64 image
-    if (profilePicture.startsWith('data:image/')) {
-      try {
-        // Extract base64 data from the data URL
-        final base64Data = profilePicture.split(',')[1];
-        final bytes = base64Decode(base64Data);
-        print('Successfully created MemoryImage from base64');
-        return MemoryImage(bytes);
-      } catch (e) {
-        print('Error decoding base64 image: $e');
-        return null;
-      }
-    }
-
-    // Check if it's a network URL
-    if (profilePicture.startsWith('http://') ||
-        profilePicture.startsWith('https://')) {
-      return NetworkImage(profilePicture);
-    }
-
-    // If it's a local asset path
-    if (profilePicture.startsWith('assets/')) {
-      return AssetImage(profilePicture);
-    }
-    return null;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -117,7 +83,7 @@ class _FriendsRequestPageState extends State<FriendsRequestPage> {
         // Assuming you have access to FirebaseFirestore and current user's mobile number
         final firestore = FirebaseFirestore.instance;
         final currentUserMobile = FirebaseAuth.instance.currentUser?.phoneNumber;
-        final currentUser = await GetData.getUserProfile(currentUserMobile!);
+        final currentUser = await GetLocalData.getUserProfile();
         // Get the accepted request details
         final senderMobile = requestRows.first['sender_mobile'];
         // Update the status in the friend_requests subcollection for the current user
@@ -262,7 +228,7 @@ class _FriendsRequestPageState extends State<FriendsRequestPage> {
               children: [
                 Builder(
                   builder: (context) {
-                    final imageProvider = _getProfileImageProvider(request["profile_picture"]);
+                    final imageProvider = Utils.getProfileImageProvider(request["profile_picture"]);
                     return CircleAvatar(
                       radius: 25,
                       backgroundImage: imageProvider,

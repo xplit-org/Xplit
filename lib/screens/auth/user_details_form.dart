@@ -1,12 +1,14 @@
-import 'package:expenser/utils.dart';
+import 'package:expenser/core/utils.dart';
+import 'package:expenser/core/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_code_tools/qr_code_tools.dart';
-import 'package:sqflite/sqflite.dart'; // Add this import
-import 'user_service.dart';
-import 'logic/create_local_db.dart';
-import 'home_page.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:expenser/services/user_service.dart';
+import 'package:expenser/models/create_local_db.dart';
+import 'package:expenser/screens/home/home_screen.dart';
+import 'package:expenser/services/firebase_sync_service.dart';
 
 class UserDetailsPage extends StatefulWidget {
   final String mobileNumber;
@@ -25,7 +27,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
 
   Uint8List? _image;
   void selectProfilePic() async {
-    Uint8List img = await pickProfilePic(ImageSource.gallery);
+    Uint8List? img = await Utils.pickProfilePic(ImageSource.gallery);
     setState(() {
       _image = img;
     });
@@ -77,7 +79,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black,
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -85,7 +87,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       ),
       child: ClipRRect(
         child: Image.asset(
-          'assets/image 4.png',
+          AppConstants.ASSET_APP_POSTER,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -104,7 +106,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black,
             blurRadius: 20,
             offset: const Offset(0, -8),
             spreadRadius: 2,
@@ -715,7 +717,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
         fullName: fullName,
         mobileNumber: '+91${widget.mobileNumber}',
         upi_id: upiId,
-        profilePicUrl: profilePicUrl ?? 'assets/image 5.png',
+        profilePicUrl: profilePicUrl ?? AppConstants.ASSET_DEFAULT_PROFILE_PIC,
       );
 
       // 2. Initialize local database
@@ -726,7 +728,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
         'mobile_number': widget.mobileNumber,
         'full_name': fullName,
         'upi_id': upiId,
-        'profile_picture': profilePicUrl ?? 'assets/image 5.png',
+        'profile_picture': profilePicUrl ?? AppConstants.ASSET_DEFAULT_PROFILE_PIC,
         'user_creation': DateTime.now().toIso8601String(),
         'last_login': DateTime.now().toIso8601String(),
         'to_get': 0.0,
@@ -734,7 +736,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       // 4. Now sync other data from Firebase (friends, existing expenses, etc.)
-      await LocalDB().syncUserData(widget.mobileNumber);
+      FirebaseSyncService().syncUserData(widget.mobileNumber);
 
       Navigator.pop(context); // Close loading dialog
 

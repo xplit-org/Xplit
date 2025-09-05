@@ -1,13 +1,9 @@
+import 'package:expenser/services/firebase_sync_service.dart';
 import 'package:flutter/material.dart';
 import 'select_friends.dart';
-import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'logic/get_data.dart';
-import 'logic/create_local_db.dart';
-import 'package:sqflite/sqflite.dart';
-import 'dart:math';
-import 'constants/app_constants.dart';
+import 'package:expenser/core/get_firebase_data.dart';
+import 'package:expenser/core/app_constants.dart';
+import 'package:expenser/core/utils.dart';
 
 class SplitOnFriendsPage extends StatefulWidget {
   final double amount;
@@ -27,44 +23,12 @@ class SplitOnFriendsPage extends StatefulWidget {
 
 class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
     with SingleTickerProviderStateMixin {
+
   late TabController _tabController;
   List<Friend> selectedFriends = [];
   Map<String, TextEditingController> amountControllers = {};
   bool _isRedistributing = false; // Flag to prevent infinite loops
-
-    // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {    
-    if (profilePicture == null || profilePicture.isEmpty) {
-      print('Profile picture is null or empty');
-      return null;
-    }
-    
-    // Check if it's a base64 image
-    if (profilePicture.startsWith('data:image/')) {
-      try {
-        // Extract base64 data from the data URL
-        final base64Data = profilePicture.split(',')[1];
-        final bytes = base64Decode(base64Data);
-        print('Successfully created MemoryImage from base64');
-        return MemoryImage(bytes);
-      } catch (e) {
-        print('Error decoding base64 image: $e');
-        return null;
-      }
-    }
-    
-    // Check if it's a network URL
-    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
-      return NetworkImage(profilePicture);
-    }
-    
-    // If it's a local asset path
-    if (profilePicture.startsWith('assets/')) {
-      return AssetImage(profilePicture);
-    }
-    return null;
-  }
-
+  final String currentUserMobile = GetFirebaseData().getCurrentUserMobile();
 
   @override
   void initState() {
@@ -222,232 +186,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
         }
       }
     }
-
     _isRedistributing = false;
-  }
-
-  // Generate a unique ID for the split with database check
-  Future<String> _generateUniqueSplitId() async {
-    final db = await LocalDB.database;
-    String splitId;
-    bool isUnique = false;
-    int attempts = 0;
-    const maxAttempts = 10;
-    
-    do {
-      // Generate a UUID-like string
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final random = Random();
-      final randomPart = random.nextInt(999999).toString().padLeft(6, '0');
-      splitId = 'split_${timestamp}_$randomPart';
-      
-      // Check if this ID already exists in the database
-      final List<Map<String, dynamic>> existing = await db.query(
-        'user_data',
-        where: 'id = ?',
-        whereArgs: [splitId],
-      );
-      
-      isUnique = existing.isEmpty;
-      attempts++;
-      
-      if (!isUnique && attempts < maxAttempts) {
-        // Wait a bit before trying again to ensure timestamp changes
-        await Future.delayed(Duration(milliseconds: 10));
-      }
-    } while (!isUnique && attempts < maxAttempts);
-    
-    if (!isUnique) {
-      // Fallback: use timestamp with microsecond precision
-      final now = DateTime.now();
-      splitId = 'split_${now.microsecondsSinceEpoch}_${Random().nextInt(9999)}';
-    }
-    
-    print('Generated unique split ID: $splitId');
-    return splitId;
-  }
-
-  // Save split data to local database
-  Future<void> _saveSplitToDatabase() async {
-    try {
-      final db = await LocalDB.database;
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final currentUserMobile = currentUser?.phoneNumber;
-      
-      if (currentUserMobile == null) {
-        throw Exception('User not logged in');
-      }
-
-      // Generate unique ID for this split
-      final splitId = await _generateUniqueSplitId();
-      final currentTime = DateTime.now().toIso8601String();
-
-      // 1. Insert main split record into user_data table
-      await db.insert(
-        AppConstants.TABLE_USER_DATA,
-        {
-          AppConstants.COL_ID: splitId,
-          AppConstants.COL_TYPE: AppConstants.TYPE_1, // Split by me
-          AppConstants.COL_AMOUNT: widget.amount,
-          AppConstants.COL_SPLIT_BY: null,
-          AppConstants.COL_SPLIT_TIME: currentTime,
-          AppConstants.COL_STATUS: null,
-          AppConstants.COL_PAID_TIME: null,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-
-      double update_to_get = 0;
-      List<Map<String, dynamic>> splitOnRecords = [];
-
-      // 2. Insert individual split records into split_on table
-      for (var friend in selectedFriends) {
-        final amount = double.tryParse(amountControllers[friend.id]?.text ?? '0') ?? 0.0;
-        
-        // Check if this friend is the current user
-        final isCurrentUser = friend.id == currentUserMobile;
-        if(!isCurrentUser){
-          update_to_get += amount;
-        }
-
-        await db.insert(
-          AppConstants.TABLE_SPLIT_ON,
-          {
-            AppConstants.COL_USER_DATA_ID: splitId,
-            AppConstants.COL_MOBILE_NO: friend.id,
-            AppConstants.COL_AMOUNT: amount,
-            AppConstants.COL_STATUS: isCurrentUser ? AppConstants.STATUS_PAID : AppConstants.STATUS_UNPAID, // Current user is marked as paid
-            AppConstants.COL_PAID_TIME: isCurrentUser ? currentTime : null,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-
-        // For each friend (except current user), insert a payment request in their type_0 (owed_by_me) in Firebase
-        if (!isCurrentUser && amount > 0) {
-          try {
-            await FirebaseFirestore.instance
-                .collection('user_data')
-                .doc(friend.id)
-                .collection('type_0')
-                .add({
-                  'amount': amount,
-                  'split_time': currentTime,
-                  'split_by': currentUserMobile,
-                  'status': AppConstants.STATUS_UNPAID,
-                  'local_synced': false,
-                });
-            print('Payment request added to type_0 for ${friend.id}');
-          } catch (e) {
-            print('Warning: Failed to add payment request to type_0 for ${friend.id}: $e');
-          }
-        }
-
-        splitOnRecords.add({
-          AppConstants.COL_MOBILE_NO: friend.id,
-          AppConstants.COL_AMOUNT: amount,
-          AppConstants.COL_STATUS: isCurrentUser ? AppConstants.STATUS_PAID : AppConstants.STATUS_UNPAID, // Current user is marked as paid
-          AppConstants.COL_PAID_TIME: isCurrentUser ? currentTime : null,
-        });
-
-      }
-
-      // 1.1. Also save to Firebase user_data collection
-      try {
-        await FirebaseFirestore.instance
-            .collection('user_data')
-            .doc(currentUserMobile)
-            .collection('type_1')
-            .doc(splitId)
-            .set({
-              'amount': widget.amount,
-              'split_time': currentTime,
-                'splitted_on': splitOnRecords,
-        });
-        print('Firebase user_data updated successfully');
-      } catch (firebaseError) {
-        print('Warning: Firebase user_data update failed: $firebaseError');
-        // Continue with local save even if Firebase fails
-      }
-
-      // Update to_get
-      if(update_to_get > 0){
-        final userProfile = await GetData.getUserProfile(currentUserMobile);
-        update_to_get += userProfile['to_get'];
-        await db.update(
-          'user',
-          {
-            'to_get': update_to_get,
-          },
-          where: 'mobile_number = ?',
-          whereArgs: [currentUserMobile],
-        );
-
-        // 2.2. Also update Firebase user profile
-        try {
-          await FirebaseFirestore.instance
-              .collection('user_details')
-              .doc(currentUserMobile)
-              .update({
-                'to_get': update_to_get,
-          });
-          print('Firebase user profile updated successfully');
-        } catch (firebaseError) {
-          print('Warning: Firebase user profile update failed: $firebaseError');
-        }
-      }
-
-      // 3. If current user is not in selected friends, add them with their share as paid
-      final currentUserInList = selectedFriends.any((friend) => friend.id == currentUserMobile);
-      if (!currentUserInList) {
-        // Calculate current user's share (total amount minus what others owe)
-        double othersTotal = 0.0;
-        for (var friend in selectedFriends) {
-          final amount = double.tryParse(amountControllers[friend.id]?.text ?? '0') ?? 0.0;
-          othersTotal += amount;
-        }
-        final currentUserShare = widget.amount - othersTotal;
-        
-        if (currentUserShare > 0) {
-          await db.insert(
-            AppConstants.TABLE_SPLIT_ON,
-            {
-              AppConstants.COL_USER_DATA_ID: splitId,
-              AppConstants.COL_MOBILE_NO: currentUserMobile,
-              AppConstants.COL_AMOUNT: currentUserShare,
-              AppConstants.COL_STATUS: AppConstants.STATUS_PAID, // Current user is marked as paid
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
-        }
-      }
-
-      print('Split data saved successfully with ID: $splitId');
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppConstants.SUCCESS_SPLIT_SAVED),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
-      // Call the callback to notify parent that data was saved
-      widget.onDataSaved?.call();
-      
-      // Navigate back to home page
-      Navigator.of(context).popUntil((route) => route.isFirst);
-
-    } catch (e) {
-      print('Error saving split data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${AppConstants.ERROR_SAVING_DATA}: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
   }
 
   @override
@@ -499,7 +238,41 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
     );
 
     // Save to database
-    await _saveSplitToDatabase();
+    try {
+      final result = await FirebaseSyncService.saveSplitToDatabase(
+        totalAmount: widget.amount,
+        selectedFriends: selectedFriends,
+        amountControllers: amountControllers,
+      );
+
+      if (result == 'SUCCESS') {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppConstants.SUCCESS_SPLIT_SAVED),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Call the callback to notify parent that data was saved
+        widget.onDataSaved?.call();
+        
+        // Navigate back to home page
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        throw Exception('Failed to save split data');
+      }
+    } catch (e) {
+      print('Error saving split data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${AppConstants.ERROR_SAVING_DATA}: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
@@ -584,7 +357,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                   ),
                 ),
                 child: const Text(
-                  'Split Amount',
+                  AppConstants.SPLIT_AMOUNT_TITLE, 
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -609,7 +382,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
             children: [
               Builder(
                 builder: (context) {
-                  final imageProvider = _getProfileImageProvider(
+                  final imageProvider = Utils.getProfileImageProvider(
                     friend.profilePicture,
                   );
                   return CircleAvatar(
@@ -665,7 +438,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                   children: [
                     Builder(
                       builder: (context) {
-                        final imageProvider = _getProfileImageProvider(friend.profilePicture);
+                        final imageProvider = Utils.getProfileImageProvider(friend.profilePicture);
                         return CircleAvatar(
                           radius: 25,
                           backgroundImage: imageProvider,
@@ -777,7 +550,7 @@ class _SplitOnFriendsPageState extends State<SplitOnFriendsPage>
                   children: [
                     Builder(
                       builder: (context) {
-                        final imageProvider = _getProfileImageProvider(friend.profilePicture);
+                        final imageProvider = Utils.getProfileImageProvider(friend.profilePicture);
                         return CircleAvatar(
                           radius: 25,
                           backgroundImage: imageProvider,

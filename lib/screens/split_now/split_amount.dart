@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'constants/app_constants.dart';
+import '../../core/app_constants.dart';
 import 'select_friends.dart';
 
 class SplitAmountPage extends StatefulWidget {

@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'package:expenser/home_page.dart';
+import 'package:expenser/screens/home/home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-import 'login_page.dart';
-import 'firebase_sync_service.dart';
-import 'friend_request_notification_service.dart';
-import 'expense_notification_service.dart';
+import 'screens/auth/login_screen.dart';
+import 'services/firebase_sync_service.dart';
+import 'services/friend_request_notification_service.dart';
+import 'services/expense_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,7 +77,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _startFriendRequestListener() {
-    print('🔍 Starting friend request listener in main.dart');
+    print('Starting friend request listener in main.dart');
     
     _friendRequestSubscription = FirebaseSyncService.startFriendRequestListener().listen(
       (_) {},
@@ -90,7 +90,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _startExpenseSyncListener() {
-    print('💰 Starting expense sync listener in main.dart');
+    print('Starting expense sync listener in main.dart');
     
     _expenseSyncSubscription = FirebaseSyncService.startExpenseSyncListener().listen(
       (_) {},

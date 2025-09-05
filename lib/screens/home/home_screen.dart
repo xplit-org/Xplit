@@ -1,14 +1,13 @@
-import 'package:expenser/split_amount.dart';
+import 'package:expenser/screens/split_now/split_amount.dart';
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'logic/get_data.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'widgets/unpaid_widget.dart';
-import 'widgets/paid_widget.dart';
-import 'widgets/splitByMeWidget.dart';
-import 'expenses.dart';
-import 'user_dashboard.dart';
-import 'constants/app_constants.dart';
+import 'package:expenser/core/get_local_data.dart';
+import 'package:expenser/widgets/unpaid_widget.dart';
+import 'package:expenser/widgets/paid_widget.dart';
+import 'package:expenser/widgets/split_by_me_widget.dart';
+import 'package:expenser/screens/total_expenses/expenses_home.dart';
+import 'package:expenser/screens/user/user_dashboard.dart';
+import 'package:expenser/core/app_constants.dart';
+import 'package:expenser/core/utils.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,49 +17,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
-  // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {
-    
-    if (profilePicture == null || profilePicture.isEmpty) {
-      print('Profile picture is null or empty');
-      return null;
-    }
-    
-    // Check if it's a base64 image
-    if (profilePicture.startsWith('data:image/')) {
-      try {
-        // Extract base64 data from the data URL
-        final base64Data = profilePicture.split(',')[1];
-        final bytes = base64Decode(base64Data);
-        print('Successfully created MemoryImage from base64');
-        return MemoryImage(bytes);
-      } catch (e) {
-        print('Error decoding base64 image: $e');
-        return null;
-      }
-    }
-    
-    // Check if it's a network URL
-    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
-      print('Creating NetworkImage for: $profilePicture');
-      return NetworkImage(profilePicture);
-    }
-    
-    // If it's a local asset path
-    if (profilePicture.startsWith('assets/')) {
-      print('Creating AssetImage for: $profilePicture');
-      return AssetImage(profilePicture);
-    }
-    
-    print('Profile picture format not recognized: $profilePicture');
-    return null;
-  }
-
   List<Map<String, dynamic>> _allData = [];
   Map<String, dynamic> _userProfile = {};
-  Map<String, double> _totalAmounts = {'owedToMe': 0.0, 'owedByMe': 0.0};
+  Map<String, double> _totalAmounts = {AppConstants.COL_TO_GET: 0.0, AppConstants.COL_TO_PAY: 0.0};
   bool _isLoading = true;
-  String? _currentUserMobile;
   late FocusNode _focusNode;
   late ScrollController _scrollController;
 
@@ -91,19 +51,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _loadData() async {
     try {
-      // Get current user's mobile number
-      final user = FirebaseAuth.instance.currentUser;
-      _currentUserMobile = user?.phoneNumber;
-      if (_currentUserMobile != null) {
         // Load all data
-        final userProfile = await GetData.getUserProfile(_currentUserMobile!);
-        final allData = await GetData.getAllUserData(_currentUserMobile!);
+        final userProfile = await GetLocalData.getUserProfile();
+        final allData = await GetLocalData.getUserData();
         setState(() {
           _allData = allData;
           _userProfile = userProfile;
           _totalAmounts = {
-                            'owedToMe': userProfile['to_get'],
-                            'owedByMe': userProfile['to_pay'],
+                            AppConstants.COL_TO_GET: userProfile[AppConstants.COL_TO_GET],
+                            AppConstants.COL_TO_PAY: userProfile[AppConstants.COL_TO_PAY],
                           };
           _isLoading = false;
         });
@@ -118,11 +74,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             );
           }
         });
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     } catch (e) {
       print('Error loading data: $e');
       setState(() {
@@ -175,7 +126,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   },
                   child: Builder(
                     builder: (context) {
-                      final imageProvider = _getProfileImageProvider(_userProfile["profile_picture"]);
+                      final imageProvider = Utils.getProfileImageProvider(_userProfile["profile_picture"]);
                       return CircleAvatar(
                         radius: 25,
                         backgroundImage: imageProvider,
@@ -208,7 +159,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            GetData.formatAmount(_totalAmounts['owedToMe'] ?? 0.0),
+                            GetLocalData.formatAmount(_totalAmounts[AppConstants.COL_TO_GET] ?? 0.0),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -228,7 +179,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            GetData.formatAmount(_totalAmounts['owedByMe'] ?? 0.0),
+                            GetLocalData.formatAmount(_totalAmounts[AppConstants.COL_TO_PAY] ?? 0.0),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -299,7 +250,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             // Generate widgets from real data
                             ..._allData.map((data) {
                               if (data["type"] == 1) {
-                                return SplitByMeWidget(data: data);
+                                return split_by_me_widget(data: data);
                               } else if (data["type"] == 0) {
                                 if(data["status"] == "Paid") {
                                   return PaidWidget(data: data);

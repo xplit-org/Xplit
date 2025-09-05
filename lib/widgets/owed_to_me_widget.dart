@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../owed_to_me_expenses.dart';
+import 'package:expenser/screens/total_expenses/owed_to_me_expenses.dart';
 import 'dart:convert';
+import 'package:expenser/core/app_constants.dart';
 
 class OwedToMeWidget extends StatefulWidget {
   final List<Map<String, dynamic>> data;
@@ -77,7 +78,7 @@ class _OwedToMeWidgetState extends State<OwedToMeWidget> {
                   userName: widget.data[index]["full_name"] ?? "Unknown",
                   totalAmount: (widget.data[index]["total_amount"] ?? 0).toInt(),
                   requestCount: widget.data[index]["total_request"] ?? 0,
-                  profilePicture: widget.data[index]["profile_picture"] ?? "assets/image 5.png",
+                  profilePicture: widget.data[index]["profile_picture"] ?? AppConstants.ASSET_DEFAULT_PROFILE_PIC,
                   requests: widget.data[index]["request"],
                 ),
               ),
@@ -165,7 +166,7 @@ class _OwedToMeWidgetState extends State<OwedToMeWidget> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Image.asset(
-            'assets/null.jpg',
+            AppConstants.ASSET_NULL_IMAGE,
             height: 200,
             width: 200,
             fit: BoxFit.contain,

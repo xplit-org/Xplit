@@ -1,13 +1,14 @@
-// ignore_for_file: dead_code
-
-import 'package:expenser/login_page.dart';
+import 'login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'signup_page.dart';
-import 'user_details_page.dart';
-import 'logic/create_local_db.dart';
-import 'home_page.dart';
+import 'signup_screen.dart';
+import 'user_details_form.dart';
+import 'package:expenser/models/create_local_db.dart';
+import 'package:expenser/core/app_constants.dart';
+import 'package:expenser/services/firebase_sync_service.dart';
+import 'package:expenser/screens/home/home_screen.dart';
+
 
 enum OtpPageType { login, signup }
 
@@ -90,7 +91,7 @@ class _OtpPageState extends State<OtpPage> {
       ),
       child: ClipRRect(
         child: Image.asset(
-          'assets/image 4.png',
+          AppConstants.ASSET_APP_POSTER,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -277,7 +278,7 @@ class _OtpPageState extends State<OtpPage> {
                     return;
                   }
 
-                  // ✅ Case 1: Paste multiple digits
+                  // Case 1: Paste multiple digits
                   if (value.length > 1) {
                     for (int i = 0; i < value.length; i++) {
                       if (index + i < _otpControllers.length) {
@@ -290,7 +291,7 @@ class _OtpPageState extends State<OtpPage> {
                     );
                     _otpFocusNodes[nextIndex].requestFocus();
                   } else {
-                    // ✅ Case 2: Single digit typed
+                    // Case 2: Single digit typed
                     if (_otpControllers[index].text.isEmpty) {
                       // If empty → put digit here
                       _otpControllers[index].text = value;
@@ -587,12 +588,10 @@ class _OtpPageState extends State<OtpPage> {
 
       // Clear the database
       await LocalDB.clearDatabase();
-      // Initialize the local database
-      final db = await LocalDB.database;
       print('Local database initialized');
 
       // Sync user data from Firebase
-      await LocalDB().syncUserData('+91${widget.mobileNumber}');
+      FirebaseSyncService().syncUserData('+91${widget.mobileNumber}');
       print('User data synced from Firebase');
 
       if (mounted) {

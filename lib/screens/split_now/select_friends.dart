@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:convert';
-import 'package:flutter_contacts/flutter_contacts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'logic/get_data.dart';
-import 'constants/app_constants.dart';
 import 'split_on_friends.dart';
+import 'package:expenser/core/get_local_data.dart';
+import 'package:expenser/core/app_constants.dart';
+import 'package:expenser/core/utils.dart';
+import 'package:expenser/core/get_firebase_data.dart';
 
 class SelectFriendsPage extends StatefulWidget {
   final double amount;
@@ -21,40 +19,7 @@ class _SelectFriendsPageState extends State<SelectFriendsPage> {
   List<Friend> selectedFriends = [];
   List<Friend> allFriends = [];
   bool _isLoading = true;
-
-    // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {    
-    if (profilePicture == null || profilePicture.isEmpty) {
-      print('Profile picture is null or empty');
-      return null;
-    }
-    
-    // Check if it's a base64 image
-    if (profilePicture.startsWith('data:image/')) {
-      try {
-        // Extract base64 data from the data URL
-        final base64Data = profilePicture.split(',')[1];
-        final bytes = base64Decode(base64Data);
-        print('Successfully created MemoryImage from base64');
-        return MemoryImage(bytes);
-      } catch (e) {
-        print('Error decoding base64 image: $e');
-        return null;
-      }
-    }
-    
-    // Check if it's a network URL
-    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
-      return NetworkImage(profilePicture);
-    }
-    
-    // If it's a local asset path
-    if (profilePicture.startsWith('assets/')) {
-      return AssetImage(profilePicture);
-    }
-    return null;
-  }
-
+  final String currentUserMobile = GetFirebaseData().getCurrentUserMobile();
   
   @override
   void initState() {
@@ -68,12 +33,8 @@ class _SelectFriendsPageState extends State<SelectFriendsPage> {
         _isLoading = true;
       });
       
-      // Get current user's mobile number
-      final user = FirebaseAuth.instance.currentUser;
-      final currentUserMobile = user?.phoneNumber;
-      
       // Load friends data
-      final List<Map<String, dynamic>> friendsData = await GetData.getFriendsList();
+      final List<Map<String, dynamic>> friendsData = await GetLocalData.getFriendsList();
       
       // Convert database data to Friend objects
       final List<Friend> friends = friendsData.map((friendData) {
@@ -87,8 +48,8 @@ class _SelectFriendsPageState extends State<SelectFriendsPage> {
       }).toList();
       
       // Add current user to the list if not already present
-      if (currentUserMobile != null) {
-        final currentUserProfile = await GetData.getUserProfile(currentUserMobile);
+      if (currentUserMobile != "") {
+        final currentUserProfile = await GetLocalData.getUserProfile();
         if (currentUserProfile.isNotEmpty) {
           final currentUserFriend = Friend(
             id: currentUserProfile['mobile_number'] ?? '',
@@ -253,7 +214,7 @@ class _SelectFriendsPageState extends State<SelectFriendsPage> {
                                 children: [
                                   Builder(
                                     builder: (context) {
-                                      final imageProvider = _getProfileImageProvider(friend.profilePicture);
+                                      final imageProvider = Utils.getProfileImageProvider(friend.profilePicture);
                                       return CircleAvatar(
                                         radius: 25,
                                         backgroundImage: imageProvider,

@@ -1,43 +1,10 @@
+import 'package:expenser/core/utils.dart';
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import '../constants/app_constants.dart';
+import 'package:expenser/core/app_constants.dart';
 
-class SplitByMeWidget extends StatelessWidget {
+class split_by_me_widget extends StatelessWidget {
   final Map<String, dynamic> data;
-  
-  const SplitByMeWidget({Key? key, required this.data}) : super(key: key);
-
-  // Helper function to create ImageProvider for profile pictures
-  ImageProvider? _getProfileImageProvider(String? profilePicture) {
-    if (profilePicture == null || profilePicture.isEmpty) {
-      return null;
-    }
-    
-    // Check if it's a base64 image
-    if (profilePicture.startsWith('data:image/')) {
-      try {
-        // Extract base64 data from the data URL
-        final base64Data = profilePicture.split(',')[1];
-        final bytes = base64Decode(base64Data);
-        return MemoryImage(bytes);
-      } catch (e) {
-        print('Error decoding base64 image: $e');
-        return null;
-      }
-    }
-    
-    // Check if it's a network URL
-    if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
-      return NetworkImage(profilePicture);
-    }
-    
-    // If it's a local asset path
-    if (profilePicture.startsWith('assets/')) {
-      return AssetImage(profilePicture);
-    }
-    
-    return null;
-  }
+  const split_by_me_widget({Key? key, required this.data}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -167,8 +134,8 @@ class SplitByMeWidget extends StatelessWidget {
           // Profile picture
           CircleAvatar(
             radius: 20,
-            backgroundImage: _getProfileImageProvider(data["profilePic"]),
-            child: _getProfileImageProvider(data["profilePic"]) == null
+            backgroundImage: Utils.getProfileImageProvider(data["profilePic"]),
+            child: Utils.getProfileImageProvider(data["profilePic"]) == null
                 ? const Icon(Icons.person)
                 : null,
           ),

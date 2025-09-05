@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'widgets/owed_by_me_widget.dart';
-import 'widgets/owed_to_me_widget.dart';
-import 'logic/get_data.dart';
+import 'package:expenser/widgets/owed_by_me_widget.dart';
+import 'package:expenser/widgets/owed_to_me_widget.dart';
+import 'package:expenser/core/get_local_data.dart';
+import 'package:expenser/core/app_constants.dart';
 
 class ExpensesPage extends StatefulWidget {
   const ExpensesPage({super.key});
@@ -21,7 +22,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   void initState() {
     super.initState();
     // Load the totalAdjustedExpenses data when the page is initialized
-    _futureTotalAdjustedExpenses = GetData.getTotalExpense();
+    _futureTotalAdjustedExpenses = GetLocalData.getTotalExpense();
 
   }
 
@@ -60,7 +61,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
             Navigator.pop(context);
           },
         ),
-        title: const Text("Expenses"),
+        title: const Text(AppConstants.EXPENSES_TITLE),
       ),
       body: DefaultTabController(
         length: 2,
@@ -75,7 +76,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 Tab(
                   child: Column(
                     children: [
-                      Text("Owed to me"),
+                      Text(AppConstants.EXPENSES_OWED_TO_ME),
                       Text(
                         "₹ ${totalAmount['owed_to_me']}",
                         style: TextStyle(
@@ -90,7 +91,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 Tab(
                   child: Column(
                     children: [
-                      Text("Owed by me"),
+                      Text(AppConstants.EXPENSES_OWED_BY_ME),
                       Text(
                         "₹ ${totalAmount['owed_by_me']}",
                         style: TextStyle(

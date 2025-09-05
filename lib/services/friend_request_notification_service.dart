@@ -1,20 +1,20 @@
 import 'dart:convert';
-import 'package:expenser/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:expenser/screens/user/user_dashboard.dart';
 
-class ExpenseNotificationService {
-  ExpenseNotificationService._internal();
-  static final ExpenseNotificationService _instance =
-      ExpenseNotificationService._internal();
-  factory ExpenseNotificationService() => _instance;
+class FriendRequestNotificationService {
+  FriendRequestNotificationService._internal();
+  static final FriendRequestNotificationService _instance =
+      FriendRequestNotificationService._internal();
+  factory FriendRequestNotificationService() => _instance;
 
   final FlutterLocalNotificationsPlugin _fln = FlutterLocalNotificationsPlugin();
   final AndroidNotificationChannel _channel = const AndroidNotificationChannel(
-    'expense_notifications_channel',
-    'Expense Notifications',
-    description: 'Notifications for new split requests and expenses',
+    'friend_requests_channel',
+    'Friend Requests',
+    description: 'Notifications for new friend requests',
     importance: Importance.high,
   );
 
@@ -52,9 +52,9 @@ class ExpenseNotificationService {
       await _fln.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(_channel);
 
       _isInitialized = true;
-      print('Expense notification service initialized successfully');
+      print('Notification service initialized successfully');
     } catch (e) {
-      print('Failed to initialize expense notification service: $e');
+      print('Failed to initialize notification service: $e');
     }
   }
 
@@ -82,15 +82,15 @@ class ExpenseNotificationService {
     }
   }
 
-  Future<void> showExpenseNotification({
-    required String amount,
-    required String splitBy,
-    String? expenseId,
-    String? splitTime,
+  Future<void> showFriendRequestNotification({
+    required String name,
+    required String mobile,
+    String? receiverMobile,
+    String? createdAtIso,
   }) async {
     // Ensure service is initialized
     if (!_isInitialized) {
-      print('Expense notification service not initialized');
+      print('Notification service not initialized');
       return;
     }
 
@@ -116,23 +116,23 @@ class ExpenseNotificationService {
       final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
       final payload = jsonEncode({
-        'amount': amount,
-        'split_by': splitBy,
-        'expense_id': expenseId,
-        'split_time': splitTime ?? DateTime.now().toIso8601String(),
+        'name': name,
+        'mobile': mobile,
+        'receiver': receiverMobile,
+        'created_at': createdAtIso ?? DateTime.now().toIso8601String(),
       });
 
       await _fln.show(
         DateTime.now().millisecondsSinceEpoch % 100000,
-        'New Split Request',
-        'You owe ₹$amount to $splitBy',
+        'New friend request',
+        '$name • $mobile',
         details,
         payload: payload,
       );
       
-      print('Expense notification shown successfully');
+      print('Notification shown successfully');
     } catch (e) {
-      print('Error showing expense notification: $e');
+      print('Error showing notification: $e');
     }
   }
 
@@ -150,14 +150,15 @@ class ExpenseNotificationService {
     }
 
     try {
-      print('Navigating to UserDashboard from expense notification');
+      print('Navigating to UserDashboard from notification');
       navigator.push(
         MaterialPageRoute(
-          builder: (_) => const HomePage(),
+          builder: (_) => const UserDashboard(),
         ),
       );
     } catch (e) {
       print('Error navigating to UserDashboard: $e');
     }
   }
-} 
+}
+

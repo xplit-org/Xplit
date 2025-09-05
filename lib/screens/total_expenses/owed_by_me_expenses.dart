@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:expenser/core/app_constants.dart';
 import 'dart:convert';
-import 'logic/get_data.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:expenser/core/get_local_data.dart';
 
-class OwedToMeExpensesPage extends StatefulWidget {
+class OwedByMeExpensesPage extends StatefulWidget {
   final String userName;
   final int totalAmount;
   final int requestCount;
   final String profilePicture;
   final List<Map<String, dynamic>> requests;
 
-  const OwedToMeExpensesPage({
+  const OwedByMeExpensesPage({
     Key? key,
     required this.userName,
     required this.totalAmount,
@@ -20,10 +20,10 @@ class OwedToMeExpensesPage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<OwedToMeExpensesPage> createState() => _OwedToMeExpensesPageState();
-  }
+  State<OwedByMeExpensesPage> createState() => _OwedByMeExpensesPageState();
+}
 
-class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
+class _OwedByMeExpensesPageState extends State<OwedByMeExpensesPage> {
   String? currentUserName;
   String? currentUserProfilePic;
   ImageProvider? _cachedProfileImage;
@@ -38,19 +38,18 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
 
   Future<void> _loadCurrentUserDetails() async {
     try {
-      String currentUserMobileNumber = FirebaseAuth.instance.currentUser?.phoneNumber ?? "";
       
-      final userDetails = await GetData.getUserDetails(currentUserMobileNumber);
+      final userDetails = await GetLocalData.getUserProfile();
       setState(() {
         currentUserName = userDetails['full_name'] ?? 'Unknown';
-        currentUserProfilePic = userDetails['profile_picture'] ?? 'assets/image 5.png';
+        currentUserProfilePic = userDetails['profile_picture'] ?? AppConstants.ASSET_DEFAULT_PROFILE_PIC;
       });
       _cacheCurrentUserImage();
     } catch (e) {
       print('Error loading current user details: $e');
       setState(() {
         currentUserName = 'Unknown';
-        currentUserProfilePic = 'assets/image 5.png';
+        currentUserProfilePic = AppConstants.ASSET_DEFAULT_PROFILE_PIC;
       });
     }
   }
@@ -144,10 +143,9 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Owed to me",
+          AppConstants.EXPENSES_OWED_BY_ME,
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
-        
       ),
       body: Column(
         children: [
@@ -160,12 +158,12 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
                 CircleAvatar(
                   radius: 40,
                   backgroundImage: _cachedProfileImage,
-                  backgroundColor: Colors.lightBlue,
+                  backgroundColor: Colors.red[100],
                   child: _cachedProfileImage == null
                       ? Text(
                           widget.userName.split(' ').map((e) => e[0]).join(''),
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Colors.red,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
@@ -176,7 +174,7 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
                 
                 // User name and owes text
                 Text(
-                  "${widget.userName} owes you",
+                  "You owe ${widget.userName}",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
@@ -191,7 +189,7 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
                   style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                    color: Colors.red,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -199,9 +197,6 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
                 // Divider
                 const Divider(height: 1),
                 const SizedBox(height: 20),
-                
-                // Filter buttons
-                
               ],
             ),
           ),
@@ -224,7 +219,6 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
     );
   }
 
-
   Widget _buildExpenseRequestItem(Map<String, dynamic> request) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -244,23 +238,23 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
 
               if (request["type"] == "type_0") {
                 // Use current user's profile picture and name
-                avatarImageProvider = _cachedProfileImage;
-                avatarName = widget.userName;
-              } else {
-                // Use the request's profile picture and name if available
                 avatarImageProvider = _cachedCurrentUserImage;
                 avatarName = currentUserName ?? "";
+              } else {
+                // Use the request's profile picture and name if available
+                avatarImageProvider = _cachedProfileImage;
+                avatarName = widget.userName;
               }
 
               return CircleAvatar(
                 radius: 20,
                 backgroundImage: avatarImageProvider,
-                backgroundColor: Colors.lightBlue,
+                backgroundColor: Colors.red[100],
                 child: avatarImageProvider == null
                     ? Text(
                         avatarName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join(''),
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Colors.red,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -298,32 +292,31 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                                 // Second line: Requested by + Amount
-                 Row(
-                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                   children: [
-                     Expanded(
-                       child: Text(
-                         "Requested by ${request["description"]}",
-                         style: TextStyle(
-                           fontSize: 14,
-                           color: Colors.grey[600],
-                         ),
-                         overflow: TextOverflow.ellipsis,
-                         maxLines: 1,
-                       ),
-                     ),
-                     const SizedBox(width: 8),
-                     Text(
-                       "₹${request["amount"].toStringAsFixed(2)}",
-                       style: TextStyle(
-                         fontSize: 16,
-                         fontWeight: FontWeight.bold,
-                         color: request["type"] == "type_1" ? Colors.green : Colors.red,
-                       ),
-                     ),
-                   ],
-                 ),
+                // Second line: Requested by + Amount
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Requested by you",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Requested by ${request["description"]}",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -338,7 +331,7 @@ class _OwedToMeExpensesPageState extends State<OwedToMeExpensesPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Image.asset(
-            'assets/null.jpg',
+            AppConstants.ASSET_NULL_IMAGE,
             height: 150,
             width: 150,
             fit: BoxFit.contain,

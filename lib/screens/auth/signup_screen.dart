@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'login_page.dart';
-import 'otp_page.dart';
-import 'user_service.dart';
+import 'login_screen.dart';
+import 'otp_screen.dart';
+import 'package:expenser/services/user_service.dart';
+import 'package:expenser/core/app_constants.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -72,7 +73,7 @@ class _SignUpPageState extends State<SignUpPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black,
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -80,74 +81,10 @@ class _SignUpPageState extends State<SignUpPage> {
       ),
       child: ClipRRect(
         child: Image.asset(
-          'assets/image 4.png',
+          AppConstants.ASSET_APP_POSTER,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPersonIllustration(String emoji, {bool isOnGround = false}) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(emoji, style: const TextStyle(fontSize: 24)),
-    );
-  }
-
-  Widget _buildATMIllustration() {
-    return Container(
-      width: 60,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade300, width: 2),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 40,
-            height: 20,
-            decoration: BoxDecoration(
-              color: Colors.blue.shade100,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Center(
-              child: Text(
-                '\$',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFloatingDollarSign() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Text(
-        '\$',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
         ),
       ),
     );
@@ -163,7 +100,7 @@ class _SignUpPageState extends State<SignUpPage> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black,
             blurRadius: 20,
             offset: const Offset(0, -8),
             spreadRadius: 2,
@@ -616,7 +553,7 @@ class BackgroundPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
+      ..color = Colors.white
       ..style = PaintingStyle.fill;
 
     const squareSize = 20.0;

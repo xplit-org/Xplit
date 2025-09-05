@@ -1,9 +1,10 @@
+import 'package:expenser/core/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'signup_page.dart';
-import 'otp_page.dart';
-import 'user_service.dart';
+import 'signup_screen.dart';
+import 'otp_screen.dart';
+import 'package:expenser/services/user_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -74,7 +75,7 @@ class _LoginPageState extends State<LoginPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black,
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -83,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
       child: ClipRRect(
         
         child: Image.asset(
-          'assets/image 4.png',
+          AppConstants.ASSET_APP_POSTER,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -103,7 +104,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black,
             blurRadius: 20,
             offset: const Offset(0, -8),
             spreadRadius: 2,

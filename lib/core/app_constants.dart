@@ -2,6 +2,7 @@
 
 class AppConstants {
   // Database related constants
+
   static const String DATABASE_NAME = 'expenser.db';
   static const int DATABASE_VERSION = 1;
   
@@ -93,10 +94,12 @@ class AppConstants {
   static const String DEFAULT_EMPTY_MESSAGE = 'No data available';
   
   // Asset paths
-  static const String ASSET_BILL_LOGO = 'assets/billLogo.png';
-  static const String ASSET_PROFILE_PIC = 'assets/image 5.png';
+  static const String ASSET_ADD_FRIEND = 'assets/add_friend.png';
+  static const String ASSET_BILL_LOGO = 'assets/bill.png';
+  static const String ASSET_DEFAULT_PROFILE_PIC = 'assets/default_profile_pic.png';
   static const String ASSET_NULL_IMAGE = 'assets/null.jpg';
-  static const String ASSET_IMAGE_5 = 'assets/image 5.png';
+  static const String ASSET_UPI_ICON = 'assets/upi_icon.png';
+  static const String ASSET_APP_POSTER = 'assets/app_poster.png';
   
   // Error messages
   static const String ERROR_LOADING_DATA = 'Error loading data';
