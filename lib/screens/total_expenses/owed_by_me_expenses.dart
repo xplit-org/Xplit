@@ -185,7 +185,7 @@ class _OwedByMeExpensesPageState extends State<OwedByMeExpensesPage> {
                 
                 // Total amount
                 Text(
-                  "₹${widget.totalAmount.toStringAsFixed(2)}",
+                  "₹${widget.totalAmount.abs().toStringAsFixed(2)}",
                   style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -238,18 +238,18 @@ class _OwedByMeExpensesPageState extends State<OwedByMeExpensesPage> {
 
               if (request["type"] == "type_0") {
                 // Use current user's profile picture and name
-                avatarImageProvider = _cachedCurrentUserImage;
+                avatarImageProvider = _cachedProfileImage;
                 avatarName = currentUserName ?? "";
               } else {
                 // Use the request's profile picture and name if available
-                avatarImageProvider = _cachedProfileImage;
+                avatarImageProvider = _cachedCurrentUserImage;
                 avatarName = widget.userName;
               }
 
               return CircleAvatar(
                 radius: 20,
                 backgroundImage: avatarImageProvider,
-                backgroundColor: Colors.red[100],
+                backgroundColor: Colors.lightBlue,
                 child: avatarImageProvider == null
                     ? Text(
                         avatarName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join(''),
@@ -294,29 +294,30 @@ class _OwedByMeExpensesPageState extends State<OwedByMeExpensesPage> {
                 const SizedBox(height: 4),
                 // Second line: Requested by + Amount
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        "Requested by you",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Requested by ${request["description"]}",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     Expanded(
+                       child: Text(
+                         "Requested by ${request["description"]}",
+                         style: TextStyle(
+                           fontSize: 14,
+                           color: Colors.grey[600],
+                         ),
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 1,
+                       ),
+                     ),
+                     const SizedBox(width: 8),
+                     Text(
+                       "₹${request["amount"].toStringAsFixed(2)}",
+                       style: TextStyle(
+                         fontSize: 16,
+                         fontWeight: FontWeight.bold,
+                         color: request["type"] == "type_1" ? Colors.green : Colors.red,
+                       ),
+                     ),
+                   ],
+                 ),
               ],
             ),
           ),
@@ -324,6 +325,7 @@ class _OwedByMeExpensesPageState extends State<OwedByMeExpensesPage> {
       ),
     );
   }
+  
 
   Widget _buildEmptyState() {
     return Center(

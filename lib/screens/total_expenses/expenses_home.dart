@@ -14,8 +14,8 @@ class ExpensesPage extends StatefulWidget {
 class _ExpensesPageState extends State<ExpensesPage> {
   Future<Map<String, dynamic>> _futureTotalAdjustedExpenses = Future.value({});
   Map<String, dynamic> totalAmount = {
-    'owed_to_me': 0,
-    'owed_by_me': 0,
+    'owed_to_me': 0.0,
+    'owed_by_me': 0.0,
   };
 
   @override
@@ -55,6 +55,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -78,7 +79,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                     children: [
                       Text(AppConstants.EXPENSES_OWED_TO_ME),
                       Text(
-                        "₹ ${totalAmount['owed_to_me']}",
+                        "₹ ${totalAmount['owed_to_me'].toStringAsFixed(2)}",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -93,7 +94,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                     children: [
                       Text(AppConstants.EXPENSES_OWED_BY_ME),
                       Text(
-                        "₹ ${totalAmount['owed_by_me']}",
+                        "₹ ${totalAmount['owed_by_me'].abs().toStringAsFixed(2)}",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -128,8 +129,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
                       .map((e) => e.value as Map<String, dynamic>)
                       .toList();
                   
-                  totalAmount['owed_to_me'] = owedToMeList.fold(0.0, (sum, item) => sum + (item['total_amount'] ?? 0)).toInt();
-                  totalAmount['owed_by_me'] = owedByMeList.fold(0.0, (sum, item) => sum + (item['total_amount'] ?? 0)).toInt();
+                  totalAmount['owed_to_me'] = owedToMeList.fold(0.0, (sum, item) => sum + (item['total_amount'] ?? 0.0));
+                  totalAmount['owed_by_me'] = owedByMeList.fold(0.0, (sum, item) => sum + (item['total_amount'] ?? 0.0));
                   
                   // Force rebuild to update TabBar
                   WidgetsBinding.instance.addPostFrameCallback((_) {

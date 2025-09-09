@@ -48,11 +48,7 @@ class _SignUpPageState extends State<SignUpPage> {
       resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xDF0439A4), Color(0xDF0439A4)],
-          ),
+          color: Color(0xFF2196F3),
         ),
         child: Column(
           children: [
@@ -71,13 +67,7 @@ class _SignUpPageState extends State<SignUpPage> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black,
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: Color(0xFF2196F3),
       ),
       child: ClipRRect(
         child: Image.asset(

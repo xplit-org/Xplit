@@ -887,12 +887,11 @@ class _UserDashboardState extends State<UserDashboard> {
                 children: [
                   // UPI Icon
                   Padding(
-                    padding: const EdgeInsets.only(top: 4), // lift icon slightly
-                    child: Image.asset(
-                      AppConstants.ASSET_UPI_ICON,
-                      height: 24,
-                      width: 24,
-                    ),
+                    padding: const EdgeInsets.only(top: 4),
+                    child:
+                      Icon(
+                        Icons.account_balance_wallet, size: 20, color: Colors.blue
+                      ),
                   ),
                   const SizedBox(width: 10),
 
@@ -910,15 +909,18 @@ class _UserDashboardState extends State<UserDashboard> {
                   ),
 
                   // Copy button
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 20, color: Colors.grey),
-                    onPressed: () {
-                      final upiId = _userData['upi_id'] ?? AppConstants.DEFAULT_UPI_ID;
-                      Clipboard.setData(ClipboardData(text: upiId));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('UPI ID copied: $upiId')),
-                      );
-                    },
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4), // align with UPI icon
+                    child: GestureDetector(
+                      onTap: () {
+                        final upiId = _userData['upi_id'] ?? AppConstants.DEFAULT_UPI_ID;
+                        Clipboard.setData(ClipboardData(text: upiId));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('UPI ID copied: $upiId')),
+                        );
+                      },
+                      child: const Icon(Icons.copy, size: 20, color: Colors.grey),
+                    ),
                   ),
                 ],
               ),

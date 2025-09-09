@@ -44,11 +44,7 @@ class _LoginPageState extends State<LoginPage> {
       resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xDF0439A4), Color(0xDF0439A4)],
-          ),
+          color: Color(0xFF2196F3),
         ),
         child: Column(
           children: [
@@ -74,11 +70,6 @@ class _LoginPageState extends State<LoginPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black,
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
         ],
       ),
       child: ClipRRect(
@@ -106,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
           BoxShadow(
             color: Colors.black,
             blurRadius: 20,
-            offset: const Offset(0, -8),
+            offset: const Offset(0, -2),
             spreadRadius: 2,
           ),
         ],
